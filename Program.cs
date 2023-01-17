@@ -1,5 +1,6 @@
 ﻿using NUlid;
 using Aurem.Nodes;
+using Aurem.Networking;
 using Microsoft.Extensions.Configuration;
 
 /// <summary>
@@ -9,39 +10,34 @@ namespace Aurem
 {
     class Program
     {
-        int numNodes = 10;
-
         private IConfiguration GetConfig() {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("config.json");
 
-            // IConfiguration config = builder.Build();
             return builder.Build();
-            // int numNodes = config["numNodes"] != null ? int.Parse(config["numNodes"]) : 10 ;
-            // Console.WriteLine(numNodes);
         }
 
-        private List<Node> InitNodes(int numNodes)
+        private List<Node> InitNodes(int numNodes, Network network)
         {
             List<Node> nodes = new List<Node>();
             for (int c = 0; c < numNodes; c++) {
-                nodes.Add(new Node(Ulid.NewUlid()));
+                nodes.Add(new Node(Ulid.NewUlid(), network));
             }
             return nodes;
         }
 
         private void Run()
         {
+            Random random = new Random();
+
+            // Reading configuration values.
             IConfiguration config = GetConfig();
             int numNodes = int.Parse(config["numNodes"] ?? "10");
-            // int numNodes = int.Parse(ConfigurationManager.AppSettings["numNodes"]);
-
-            Random random = new Random();
-            // chDAG<Unit> dag = new();
 
             // Creating nodes to simulate the "minting" of units.
-            List<Node> nodes = InitNodes(numNodes);
+            Network network = new();
+            List<Node> nodes = InitNodes(numNodes, network);
             while (true) {
                 // Now we'll create units for each node.
                 // We are randomizing the order of each node for each iteration.
