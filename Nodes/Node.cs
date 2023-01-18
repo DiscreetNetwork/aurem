@@ -10,22 +10,30 @@ using Aurem.Networking;
 namespace Aurem.Nodes
 {
     /// <summary>
-    /// A node in Aleph represents an entity that is producing DAG units for a
+    /// A node represents an entity that is producing DAG units for a
     /// network of nodes.
     /// </summary>
     public class Node
     {
-        private Ulid _id;
+        public Ulid Id;
         // Each node has its on local copy of the chDAG in the network.
-        private chDAG _chDAG;
+        public chDAG _chDAG { get; }
 
         public Node(Ulid id, Network network)
         {
-            _id = id;
+            Id = id;
             // We first register the node to the network, and then we create a
             // chDAG associated to this network.
             network.Add(this);
-            _chDAG = new(network);
+            _chDAG = new(network, this);
+        }
+
+        /// <summary>
+        /// GetChDAG returns the chDAG to which the node is registered to.
+        /// </summary>
+        public chDAG GetChDAG()
+        {
+            return _chDAG;
         }
 
         public void CreateUnit(byte[] data)

@@ -12,12 +12,26 @@ namespace Aurem.Networking
     {
         private List<Node> _nodes;
 
-        public Network(){
+        public Network()
+        {
             _nodes = new();
         }
 
-        public void Add(Node node) {
+        /// <summary>
+        /// Add adds a node to this network.
+        /// </summary>
+        public void Add(Node node)
+        {
             _nodes.Add(node);
+        }
+
+        /// <summary>
+        /// GetNodes retrieves all the nodes that are participating in the
+        /// network.
+        /// </summary>
+        public List<Node> GetNodes ()
+        {
+            return _nodes;
         }
 
         public int NodesCount => _nodes.Count;

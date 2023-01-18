@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using DotNetGraph;
 using DotNetGraph.Node;
 using DotNetGraph.Edge;
 using DotNetGraph.Extensions;
 using Aurem.Units;
+using Aurem.Nodes;
 using Aurem.Networking;
 
 /// <summary>
@@ -13,7 +15,8 @@ namespace Aurem.chDAGs
 {
     public class chDAG
     {
-        private Dictionary<int, List<Unit>> _units;
+        private ConcurrentDictionary<int, List<Unit>> _units;
+        private Node _owner;
 
         public int Round { get; set; } = 0;
         /// <summary>
@@ -21,9 +24,10 @@ namespace Aurem.chDAGs
         /// </summary>
         private Network _network;
 
-        public chDAG(Network network)
+        public chDAG(Network network, Node owner)
         {
             _units = new();
+            _owner = owner;
             _network = network;
         }
 
@@ -31,7 +35,25 @@ namespace Aurem.chDAGs
         /// Sync syncs the chDAG to the latest units broadcasted by the network.
         /// </summary>
         private void Sync() {
-            // _network.
+            foreach (Node node in _network.GetNodes()) {
+                if (!node.Id.Equals(this._owner.Id)) {
+                    chDAG chDAG = node.GetChDAG();
+                    // NOTE We're checking the count first, to avoid an error in chDAG.GetRoundUnits()
+                    // that occurs when trying to access a non-existent key. An alternative is to return
+                    // an empty List<Unit>, but I don't know if this would be inefficient, resource-wise.
+                    if (chDAG.GetRoundUnitsCount(Round-1) < 1) continue;
+
+                    // NOTE Checking that a node doesn't sync with itself wasn't enough for some reason.
+                    // FIXME A theory is that nodes can end up sharing the same List object.
+                    List<Unit> units = chDAG.GetRoundUnits(Round-1);
+                    if (units.GetHashCode() == _units[Round-1].GetHashCode()) continue;
+
+                    foreach (Unit unit in units) {
+                        if (!_units[Round-1].Contains(unit))
+                            _units[Round-1].Add(unit);
+                    }
+                }
+            }
         }
 
         // The number of required parents when creating a new unit in the DAG.
@@ -60,15 +82,37 @@ namespace Aurem.chDAGs
             // If it's new, then a new unit cannot have parents.
             if (Round != 0) {
                 bool isEnoughNodes = IsMinimumParents();
-                if(isEnoughNodes) {
-                    unit.Parents = (List<Unit>)_units[Round-1].Take(_network.MinimumParents());
-                } else {
-                    Sync();
-                    isEnoughNodes = IsMinimumParents();
-                };
+                while (!isEnoughNodes) {
+                    if(isEnoughNodes) {
+                        unit.Parents = (List<Unit>)_units[Round-1].Take(_network.MinimumParents());
+                    } else {
+                        Sync();
+                        isEnoughNodes = IsMinimumParents();
+                    };
+                    // Thread.Yield();
+                    Task.Yield();
+                }
             }
+
+            if (!_units.ContainsKey(Round)) {
+                _units[Round] = new List<Unit>();
+            }
+
             _units[Round].Add(unit);
             Round++;
+        }
+
+        private int GetRoundUnitsCount(int round)
+        {
+            return _units.ContainsKey(round) ? _units[round].Count : 0;
+        }
+
+        /// <summary>
+        /// GetRoundUnits retrieves the units belonging to certain round.
+        /// </summary>
+        public List<Unit> GetRoundUnits(int round)
+        {
+            return _units[round];
         }
 
         /// <summary>
