@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using NUlid;
 using DotNetGraph;
 using DotNetGraph.Node;
 using DotNetGraph.Edge;
@@ -15,8 +16,10 @@ namespace Aurem.chDAGs
 {
     public class chDAG
     {
+        private static readonly object _lock = new object();
         private ConcurrentDictionary<int, List<Unit>> _units;
         private Node _owner;
+        private Ulid _id;
 
         public int Round { get; set; } = 0;
         /// <summary>
@@ -26,6 +29,7 @@ namespace Aurem.chDAGs
 
         public chDAG(Network network, Node owner)
         {
+            _id = Ulid.NewUlid();
             _units = new();
             _owner = owner;
             _network = network;
@@ -34,7 +38,7 @@ namespace Aurem.chDAGs
         /// <summary>
         /// Sync syncs the chDAG to the latest units broadcasted by the network.
         /// </summary>
-        private void Sync() {
+        public void Sync() {
             foreach (Node node in _network.GetNodes()) {
                 if (!node.Id.Equals(this._owner.Id)) {
                     chDAG chDAG = node.GetChDAG();
@@ -83,23 +87,20 @@ namespace Aurem.chDAGs
             if (Round != 0) {
                 bool isEnoughNodes = IsMinimumParents();
                 while (!isEnoughNodes) {
-                    if(isEnoughNodes) {
-                        unit.Parents = (List<Unit>)_units[Round-1].Take(_network.MinimumParents());
-                    } else {
-                        Sync();
-                        isEnoughNodes = IsMinimumParents();
-                    };
-                    // Thread.Yield();
-                    Task.Yield();
+                    lock (_lock) Sync();
+                    isEnoughNodes = IsMinimumParents();
                 }
+                unit.Parents = _units[Round-1].Take(_network.MinimumParents()).ToList();
             }
 
-            if (!_units.ContainsKey(Round)) {
-                _units[Round] = new List<Unit>();
-            }
+            lock (_lock) {
+                if (!_units.ContainsKey(Round)) {
+                    _units[Round] = new List<Unit>();
+                }
 
-            _units[Round].Add(unit);
-            Round++;
+                _units[Round].Add(unit);
+                Round++;
+            }
         }
 
         private int GetRoundUnitsCount(int round)
@@ -140,15 +141,17 @@ namespace Aurem.chDAGs
         }
 
         /// <summary>
-        /// Creates a PNG of the DAG.
+        /// UnitToDotNode creates a node for a DotGraph representing the
+        /// provided chDAG unit.
         /// </summary>
-        public void Save() {
-            var graph = new DotGraph("DAG");
-
-            var myNode = new DotNode("Node")
+        private DotNode UnitToDotNode(Unit unit)
+        {
+            // TODO Display something more meaningful on the unit.
+            string unitId = $"{unit.Round} - {unit.Data[0]}";
+            return new DotNode(unitId)
             {
                 Shape = DotNodeShape.Ellipse,
-                Label = "My node!",
+                Label = unitId,
                 FillColor = System.Drawing.Color.Coral,
                 FontColor = System.Drawing.Color.Black,
                 Style = DotNodeStyle.Dotted,
@@ -156,32 +159,56 @@ namespace Aurem.chDAGs
                 Height = 0.5f,
                 PenWidth = 1.5f
             };
+        }
 
-            // Add the node to the graph
-            graph.Elements.Add(myNode);
-
-            // Create an edge with identifiers
-            // var myEdge = new DotEdge("myNode1", "myNode2");
-
-            // Create an edge with nodes and attributes
-            var myEdge = new DotEdge(myNode, myNode)
+        /// <summary>
+        /// UnitsEdge returns an edge between two units in a chDAG for a
+        /// DotGraph.
+        /// </summary>
+        private DotEdge UnitsEdge(DotNode node1, DotNode node2)
+        {
+            return new DotEdge(node1, node2)
             {
                 ArrowHead = DotEdgeArrowType.Box,
                 ArrowTail = DotEdgeArrowType.Diamond,
                 Color = System.Drawing.Color.Red,
                 FontColor = System.Drawing.Color.Black,
-                Label = "My edge!",
+                Label = "",
                 Style = DotEdgeStyle.Dashed,
                 PenWidth = 1.5f
             };
+        }
 
-            // Add the edge to the graph
-            graph.Elements.Add(myEdge);
+        /// <summary>
+        /// Creates a PNG of the chDAG.
+        /// </summary>
+        public void Save() {
+            var graph = new DotGraph("chDAG", true);
 
-            var dot = graph.Compile(true);
-            File.WriteAllText("graph.dot", dot);
-            // Run it yourself in a terminal...
-            // Process.Start("dot", "-Tpng -o graph.png graph.dot").WaitForExit();
+            Dictionary<Ulid, DotNode> nodes = new();
+
+            // Adding units (nodes, in graph theory).
+            for (int c = 0; c < Round; c++) {
+                foreach (Unit unit in _units[c]) {
+                    DotNode node = UnitToDotNode(unit);
+                    nodes[unit.Id] = node;
+                    graph.Elements.Add(node);
+
+                    // Adding edges to parents.
+                    if (unit.Parents != null)
+                        foreach (Unit parent in unit.Parents) {
+                            if (nodes.ContainsKey(parent.Id))
+                                graph.Elements.Add(UnitsEdge(nodes[parent.Id], node));
+                        }
+                }
+            }
+
+            string dot = graph.Compile(true);
+            // There isn't a way to determine the layout of the Graphviz graph in DotNetGraph.
+            // A quick hack is to insert the option directly.
+            dot = dot.Insert(dot.IndexOf("\n") + 1, "rankdir=LR;\n");
+            // Saving to file.
+            File.WriteAllText($"{this._id}.dot", dot);
         }
     }
 }
