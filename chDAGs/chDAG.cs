@@ -38,7 +38,8 @@ namespace Aurem.chDAGs
         /// <summary>
         /// Sync syncs the chDAG to the latest units broadcasted by the network.
         /// </summary>
-        public void Sync() {
+        public void Sync()
+        {
             foreach (Node node in _network.GetNodes()) {
                 if (!node.Id.Equals(this._owner.Id)) {
                     chDAG chDAG = node.GetChDAG();
@@ -82,6 +83,15 @@ namespace Aurem.chDAGs
         public void Add(Unit unit)
         {
             unit.Round = Round;
+            // TODO Refactor this.
+            if (Round == 0) {
+                if (!_units.ContainsKey(Round)) {
+                    _units[Round] = new List<Unit>();
+                }
+                _units[Round].Add(unit);
+                Round++;
+                return;
+            }
             // We need to check if this is a new instance of a DAG.
             // If it's new, then a new unit cannot have parents.
             if (Round != 0) {

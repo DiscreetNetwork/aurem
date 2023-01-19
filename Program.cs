@@ -61,7 +61,7 @@ namespace Aurem
                 // NOTE The threads are being wrapped in tasks, so we can use Task.WaitAll.
                 // If there is a more optimal way to do this, feel free to report this.
                 List<Thread> threads = new();
-                List<Task> tasks = new();
+                // List<Task> tasks = new();
 
                 // Now we'll create units for each node.
                 // We are randomizing the order of each node for each iteration.
@@ -69,32 +69,29 @@ namespace Aurem
                 // TODO Create method Network.ShuffleNodes().
                 ShuffleNodes(nodes);
                 foreach (Node node in nodes) {
-                    double r = random.NextDouble();
-                    // We want to simulate some latency. We'll do it in a very dumb way.
-                    // There's a chance that a node "won't add" a unit in this
-                    // "round" or, more precisely, it won't add it "in time".
-                    if (r > 0.9)
-                        // We don't care about what data we store for this PoC.
-                        threads.Add(new Thread(() => {
-                            node.CreateUnit(new byte[1]{ (byte)random.Next(0, 255) });
-                        }));
+                    // TODO Simulate high latencies.
+                    // We don't care about what data we store for this PoC.
+                    threads.Add(new Thread(() => {
+                        node.CreateUnit(new byte[1]{ (byte)random.Next(0, 255) });
+                    }));
                 }
-                foreach (Thread thread in threads) { tasks.Add(Task.Run(() => thread.Start())); }
-                Task.WaitAll(tasks.ToArray());
-                Console.WriteLine("+");
+                foreach (Thread thread in threads) { thread.Start(); }
+                // Let's wait until all threads finish. We're simulating nodes
+                // running asynchronously, but we're waiting them to finish each
+                // round, for now.
+                while(!threads.TrueForAll((thread) => !thread.IsAlive ))
 
                 // If fixedRounds is set, also save a graph of the final chDAG.
                 // Note that if it's not set, c != fixedRounds always holds.
                 if (c == fixedRounds-1) {
                     string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                     string graphsPath = Path.Combine(homePath, graphsDir);
-                    Console.WriteLine(graphsPath);
                     // Creating directory to contain the generated graphs.
                     if (graphsDir != "") {
                         DirectoryInfo dir = new DirectoryInfo(graphsPath);
                         if (!dir.Exists) dir.Create();
                     }
-                    Console.WriteLine($"{c} {fixedRounds-1}");
+                    // Saving each chDAG.
                     foreach (Node node in nodes)
                         node.GetChDAG().Save(graphsPath);
                 }

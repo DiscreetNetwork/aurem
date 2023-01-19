@@ -1,5 +1,5 @@
 {
-  "numNodes": 10,
+  "numNodes": 5,
   "fixedRounds": 10,
   "graphsDirectory": "_Graphs"
 }
