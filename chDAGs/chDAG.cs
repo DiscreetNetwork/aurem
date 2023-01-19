@@ -180,9 +180,9 @@ namespace Aurem.chDAGs
         }
 
         /// <summary>
-        /// Creates a PNG of the chDAG.
+        /// Creates a PNG of the chDAG and saves it to the specified path.
         /// </summary>
-        public void Save() {
+        public void Save(string path) {
             var graph = new DotGraph("chDAG", true);
 
             Dictionary<Ulid, DotNode> nodes = new();
@@ -208,7 +208,8 @@ namespace Aurem.chDAGs
             // A quick hack is to insert the option directly.
             dot = dot.Insert(dot.IndexOf("\n") + 1, "rankdir=LR;\n");
             // Saving to file.
-            File.WriteAllText($"{this._id}.dot", dot);
+
+            File.WriteAllText(Path.Combine(path, $"{this._id}.dot"), dot);
         }
     }
 }

@@ -86,16 +86,17 @@ namespace Aurem
                 // If fixedRounds is set, also save a graph of the final chDAG.
                 // Note that if it's not set, c != fixedRounds always holds.
                 if (c == fixedRounds-1) {
+                    string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    string graphsPath = Path.Combine(homePath, graphsDir);
+                    Console.WriteLine(graphsPath);
                     // Creating directory to contain the generated graphs.
                     if (graphsDir != "") {
-                        DirectoryInfo dir = new DirectoryInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "_Graphs"));
+                        DirectoryInfo dir = new DirectoryInfo(graphsPath);
                         if (!dir.Exists) dir.Create();
                     }
                     Console.WriteLine($"{c} {fixedRounds-1}");
-                    // nodes[0].GetChDAG().Sync();
-                    // Thread.Sleep(1000);
                     foreach (Node node in nodes)
-                        node.GetChDAG().Save();
+                        node.GetChDAG().Save(graphsPath);
                 }
             }
         }
