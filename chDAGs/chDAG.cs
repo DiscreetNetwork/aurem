@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using NUlid;
 using DotNetGraph;
 using DotNetGraph.Node;
@@ -40,6 +41,7 @@ namespace Aurem.chDAGs
         /// </summary>
         public void Sync()
         {
+            // TODO We're only updating Round-1.
             foreach (Node node in _network.GetNodes()) {
                 if (!node.Id.Equals(this._owner.Id)) {
                     chDAG chDAG = node.GetChDAG();
@@ -136,6 +138,52 @@ namespace Aurem.chDAGs
             // TODO
             // Task.Delay(1000);
             return new List<Unit>();
+        }
+
+        /// <summary>
+        /// ChooseHead determines a unit that is visible by all the nodes
+        /// registered to a network.
+        /// </summary>
+        public Unit ChooseHead()
+        {
+            // The node's unit at Round-0 will never be visible by any other node,
+            // as it has not been broadcasted yet.
+            // The units at Round-1 needed parents from Round-2 in order to be
+            // created (2f+1 units).
+            // Thus, the head unit is retrieved from Round-2.
+            List<Unit> judges = GetRoundUnits(Round-1);
+            List<Unit> candidates = GetRoundUnits(Round-2);
+
+            if (judges == null || candidates == null)
+                throw new System.Exception("Units of rounds Round-1 and Round-2 should exist.");
+
+            // List<Ulid>
+
+            foreach (Unit judge in judges) {
+                // We need to count the number of instances of a parent unit
+                // present in other units acting also as a parent, i.e. the
+                // first unit, ordered by age, with 2f+1 children wins.
+                int c = 0;
+                if (judge.Parents != null) {
+                    // judge.Parents.OrderBy(elt => elt.Id).ToList();
+                    // judge.Parents
+                }
+
+            }
+
+            return candidates[0];
+        }
+
+        /// <summary>
+        /// LinearOrdering sorts a subset of the units in the chDAG in an order
+        /// that is going to be common to all the other chDAGs in the network.
+        /// It orders a subset, because not all the units are going to be
+        /// present in the local chDAG, due to the asynchronous nature of the
+        /// protocol.
+        /// </summary>
+        private void LinearOrdering()
+        {
+
         }
 
         /// <summary>
