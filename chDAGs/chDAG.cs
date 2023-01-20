@@ -163,12 +163,11 @@ namespace Aurem.chDAGs
                 // We need to count the number of instances of a parent unit
                 // present in other units acting also as a parent, i.e. the
                 // first unit, ordered by age, with 2f+1 children wins.
-                int c = 0;
+                // int c = 0;
                 if (judge.Parents != null) {
                     // judge.Parents.OrderBy(elt => elt.Id).ToList();
                     // judge.Parents
                 }
-
             }
 
             return candidates[0];
@@ -205,14 +204,15 @@ namespace Aurem.chDAGs
         private DotNode UnitToDotNode(Unit unit)
         {
             // TODO Display something more meaningful on the unit.
-            string unitId = $"{unit.Round} - {unit.Data[0]}";
+            string unitId = $"{unit.Round} [ {unit.Data[0]} ]";
             return new DotNode(unitId)
             {
                 Shape = DotNodeShape.Ellipse,
                 Label = unitId,
-                FillColor = System.Drawing.Color.Coral,
-                FontColor = System.Drawing.Color.Black,
-                Style = DotNodeStyle.Dotted,
+                Color = System.Drawing.Color.White,
+                FillColor = System.Drawing.Color.White,
+                FontColor = System.Drawing.Color.White,
+                Style = DotNodeStyle.Solid,
                 Width = 0.5f,
                 Height = 0.5f,
                 PenWidth = 1.5f
@@ -227,13 +227,13 @@ namespace Aurem.chDAGs
         {
             return new DotEdge(node1, node2)
             {
-                ArrowHead = DotEdgeArrowType.Box,
-                ArrowTail = DotEdgeArrowType.Diamond,
-                Color = System.Drawing.Color.Red,
-                FontColor = System.Drawing.Color.Black,
+                ArrowHead = DotEdgeArrowType.Diamond,
+                ArrowTail = DotEdgeArrowType.Empty,
+                Color = System.Drawing.Color.Violet,
+                FontColor = System.Drawing.Color.White,
                 Label = "",
-                Style = DotEdgeStyle.Dashed,
-                PenWidth = 1.5f
+                Style = DotEdgeStyle.Solid,
+                PenWidth = 1.0f
             };
         }
 
@@ -265,6 +265,7 @@ namespace Aurem.chDAGs
             // There isn't a way to determine the layout of the Graphviz graph in DotNetGraph.
             // A quick hack is to insert the option directly.
             dot = dot.Insert(dot.IndexOf("\n") + 1, "rankdir=LR;\n");
+            dot = dot.Insert(dot.IndexOf("\n") + 1, "bgcolor=black;\n");
             // Saving to file.
 
             File.WriteAllText(Path.Combine(path, $"{this._id}.dot"), dot);
