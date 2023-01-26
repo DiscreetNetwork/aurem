@@ -62,6 +62,9 @@ namespace Aurem.chDAGs
                     if (units.GetHashCode() == _units[round].GetHashCode()) continue;
 
                     foreach (Unit unit in units) {
+                        if (!IsValidUnit(unit))
+                            // TODO Discuss what we should do with Byzantine nodes.
+                            throw new System.Exception("Possible Byzantine unit received.");
                         if (!_units[round].Contains(unit))
                             _units[round].Add(unit);
                     }
@@ -237,6 +240,29 @@ namespace Aurem.chDAGs
         public bool IsConsistent()
         {
             // TODO
+            return true;
+        }
+
+        /// <summary>
+        /// IsValidUnit checks if the parents of the provided unit are present
+        /// in the local chDAG, and that there is a minimum of 2f+1 parents from
+        /// the previous round.
+        /// </summary>
+        public bool IsValidUnit(Unit unit)
+        {
+            // If round == 0, then no parents are required.
+            if (unit.Round == 0)
+                return true;
+            // If no parent, the unit is obviously invalid.
+            if (unit.Parents == null)
+                return false;
+            int round = unit.Round;
+            // Checking if the previous round in the local chDAG contains all of
+            // the unit's parents.
+            foreach (Unit parent in unit.Parents) {
+                if (!_units[round-1].Any(x => x.Id == parent.Id))
+                    return false;
+            }
             return true;
         }
 
