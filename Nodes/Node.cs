@@ -36,9 +36,13 @@ namespace Aurem.Nodes
             return _chDAG;
         }
 
+        /// <summary>
+        /// CreateUnit creates a new unit for this node's chDAG, which contains
+        /// some data.
+        /// </summary>
         public void CreateUnit(byte[] data)
         {
-            _chDAG.Add(new Unit(data));
+            _chDAG.Add(new Unit(Id, data));
         }
     }
 }

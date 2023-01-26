@@ -40,6 +40,19 @@ namespace Aurem
             }
         }
 
+        private void SaveGraphs(string graphsDir, List<Node> nodes) {
+            string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string graphsPath = Path.Combine(homePath, graphsDir);
+            // Creating directory to contain the generated graphs.
+            if (graphsDir != "") {
+                DirectoryInfo dir = new DirectoryInfo(graphsPath);
+                if (!dir.Exists) dir.Create();
+            }
+            // Saving each chDAG.
+            foreach (Node node in nodes)
+                node.GetChDAG().Save(graphsPath);
+        }
+
         private void Run()
         {
             Random random = new Random();
@@ -49,6 +62,8 @@ namespace Aurem
             int numNodes = int.Parse(config["numNodes"] ?? "10");
             int fixedRounds = int.Parse(config["fixedRounds"] ?? "-1");
             string graphsDir = config["graphsDirectory"] ?? "";
+            bool stepByStepGraphs = false;
+            _ = bool.TryParse(config["stepByStepGraphs"] ?? "false", out stepByStepGraphs);
 
             // Creating nodes to simulate the "minting" of units.
             Network network = new();
@@ -73,27 +88,22 @@ namespace Aurem
                     // We don't care about what data we store for this PoC.
                     threads.Add(new Thread(() => {
                         node.CreateUnit(new byte[1]{ (byte)random.Next(0, 255) });
+                        // Thread.Sleep(random.Next(0, 3000));
                     }));
                 }
                 foreach (Thread thread in threads) { thread.Start(); }
                 // Let's wait until all threads finish. We're simulating nodes
                 // running asynchronously, but we're waiting them to finish each
                 // round, for now.
-                while(!threads.TrueForAll((thread) => !thread.IsAlive ))
+                while(!threads.TrueForAll((thread) => !thread.IsAlive )) { }
+
+                if (stepByStepGraphs)
+                    SaveGraphs(graphsDir, nodes);
 
                 // If fixedRounds is set, also save a graph of the final chDAG.
                 // Note that if it's not set, c != fixedRounds always holds.
-                if (c == fixedRounds-1) {
-                    string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    string graphsPath = Path.Combine(homePath, graphsDir);
-                    // Creating directory to contain the generated graphs.
-                    if (graphsDir != "") {
-                        DirectoryInfo dir = new DirectoryInfo(graphsPath);
-                        if (!dir.Exists) dir.Create();
-                    }
-                    // Saving each chDAG.
-                    foreach (Node node in nodes)
-                        node.GetChDAG().Save(graphsPath);
+                if (c == fixedRounds-1 && !stepByStepGraphs) {
+                    SaveGraphs(graphsDir, nodes);
                 }
             }
         }

@@ -113,7 +113,8 @@ namespace Aurem.chDAGs
                 // r-1. If we haven't received some units from some nodes in
                 // r-1, we have to use the latest units that we have received
                 // from them.
-                unit.Parents = _units[Round-1].Take(_network.MinimumParents()).ToList();
+                // unit.Parents = _units[Round-1].Take(_network.MinimumParents()).ToList();
+                unit.Parents = GetParents();
             }
 
             lock (_lock) {
@@ -127,7 +128,7 @@ namespace Aurem.chDAGs
                 // for units from a particular round.
                 // NOTE We're using -4 rounds, because this should be more than enough
                 // for completely updating any missing past units for this PoC.
-                for (int c = Round - 4; c < Round; c++)
+                for (int c = Round - 4; c < Round && c > 0; c++)
                     Sync(c);
 
                 _units[Round].Add(unit);
@@ -149,15 +150,29 @@ namespace Aurem.chDAGs
         }
 
         /// <summary>
-        /// GetParents needs to return the minimum required number of parents to
-        /// avoid a Byzantine attack. The units need to belong to the previous
-        /// round number.
+        /// GetParents returns the latest units produced by each node in the
+        /// network. Note that this method does not have the responsibility of
+        /// checking if there are at least 2f+1 units in Round-1.
         /// <summary>
         public List<Unit> GetParents()
         {
-            // TODO
-            // Task.Delay(1000);
-            return new List<Unit>();
+            // We start with all the units in the previous round.
+            List<Unit> units = _units[Round-1].ToList();
+            for (int c = Round-2; c >= 0; c--) {
+                int addedCount = 0;
+                // Checking if we can add a unit from a node that has not
+                // provided a unit to the list of parents.
+                foreach (Unit unit in _units[c]) {
+                    if (!units.Any(x => x.CreatorId == unit.CreatorId)) {
+                        units.Add(unit);
+                        addedCount++;
+                    }
+                }
+                // If addedCount == 0, then it means that we now have units from
+                // all the nodes.
+                if (addedCount == 0) break;
+            }
+            return units;
         }
 
         /// <summary>
@@ -296,7 +311,8 @@ namespace Aurem.chDAGs
             dot = dot.Insert(dot.IndexOf("\n") + 1, "bgcolor=black;\n");
             // Saving to file.
 
-            File.WriteAllText(Path.Combine(path, $"{this._id}.dot"), dot);
+            Random rand = new Random();
+            File.WriteAllText(Path.Combine(path, $"{this._id}_{Ulid.NewUlid()}.dot"), dot);
         }
     }
 }
