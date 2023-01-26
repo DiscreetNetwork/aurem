@@ -8,6 +8,7 @@ namespace Aurem.Units
 {
     public class Unit
     {
+        // TODO We need to calculate a hash to use as ID.
         public Ulid Id { get; set;}
         public byte[] Data { get; set; }
         public List<Unit>? Parents { get; set; }

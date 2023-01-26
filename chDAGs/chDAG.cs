@@ -39,25 +39,31 @@ namespace Aurem.chDAGs
         /// <summary>
         /// Sync syncs the chDAG to the latest units broadcasted by the network.
         /// </summary>
-        public void Sync()
+        public void Sync(int round)
         {
-            // TODO We're only updating Round-1.
+            // Checking if we already have all the possible units, assuming a
+            // network of constant size.
+            if (_units[round].Count == _network.NodesCount) return;
+            // NOTE In the end, we'll be just receiving units asynchrously, from
+            // whatever past round.
             foreach (Node node in _network.GetNodes()) {
                 if (!node.Id.Equals(this._owner.Id)) {
                     chDAG chDAG = node.GetChDAG();
                     // NOTE We're checking the count first, to avoid an error in chDAG.GetRoundUnits()
                     // that occurs when trying to access a non-existent key. An alternative is to return
                     // an empty List<Unit>, but I don't know if this would be inefficient, resource-wise.
-                    if (chDAG.GetRoundUnitsCount(Round-1) < 1) continue;
+                    // Regarding the empty List, this should be very efficient, because we're just
+                    // creating a pointer; we're not creating data.
+                    if (chDAG.GetRoundUnitsCount(round) < 1) continue;
 
                     // NOTE Checking that a node doesn't sync with itself wasn't enough for some reason.
                     // FIXME A theory is that nodes can end up sharing the same List object.
-                    List<Unit> units = chDAG.GetRoundUnits(Round-1);
-                    if (units.GetHashCode() == _units[Round-1].GetHashCode()) continue;
+                    List<Unit> units = chDAG.GetRoundUnits(round);
+                    if (units.GetHashCode() == _units[round].GetHashCode()) continue;
 
                     foreach (Unit unit in units) {
-                        if (!_units[Round-1].Contains(unit))
-                            _units[Round-1].Add(unit);
+                        if (!_units[round].Contains(unit))
+                            _units[round].Add(unit);
                     }
                 }
             }
@@ -99,9 +105,14 @@ namespace Aurem.chDAGs
             if (Round != 0) {
                 bool isEnoughNodes = IsMinimumParents();
                 while (!isEnoughNodes) {
-                    lock (_lock) Sync();
+                    lock (_lock) Sync(Round-1);
                     isEnoughNodes = IsMinimumParents();
                 }
+                // TODO We need to capture a snapshot of all the latest
+                // information we have from the chDAG, not just 2f+1 units from
+                // r-1. If we haven't received some units from some nodes in
+                // r-1, we have to use the latest units that we have received
+                // from them.
                 unit.Parents = _units[Round-1].Take(_network.MinimumParents()).ToList();
             }
 
@@ -109,6 +120,15 @@ namespace Aurem.chDAGs
                 if (!_units.ContainsKey(Round)) {
                     _units[Round] = new List<Unit>();
                 }
+
+                // NOTE This will not be necessary later, as we should adopt a
+                // publisher-subscriber architecture or something similar, where
+                // we just listen to a publisher for new units, instead of requesting
+                // for units from a particular round.
+                // NOTE We're using -4 rounds, because this should be more than enough
+                // for completely updating any missing past units for this PoC.
+                for (int c = Round - 4; c < Round; c++)
+                    Sync(c);
 
                 _units[Round].Add(unit);
                 Round++;
@@ -151,26 +171,34 @@ namespace Aurem.chDAGs
             // The units at Round-1 needed parents from Round-2 in order to be
             // created (2f+1 units).
             // Thus, the head unit is retrieved from Round-2.
-            List<Unit> judges = GetRoundUnits(Round-1);
+            List<Unit> backers = GetRoundUnits(Round-1);
             List<Unit> candidates = GetRoundUnits(Round-2);
 
-            if (judges == null || candidates == null)
+            if (backers == null || candidates == null)
                 throw new System.Exception("Units of rounds Round-1 and Round-2 should exist.");
 
-            // List<Ulid>
+            // We first sort the parents by Id.
+            candidates.Sort((x, y) => x.Id.CompareTo(y.Id));
 
-            foreach (Unit judge in judges) {
-                // We need to count the number of instances of a parent unit
-                // present in other units acting also as a parent, i.e. the
-                // first unit, ordered by age, with 2f+1 children wins.
-                // int c = 0;
-                if (judge.Parents != null) {
-                    // judge.Parents.OrderBy(elt => elt.Id).ToList();
-                    // judge.Parents
+            // We need to count the number of instances of a parent unit present
+            // in units from the next round, i.e. the first unit, ordered by
+            // age, with 2f+1 children wins.
+            foreach (Unit candidate in candidates) {
+                int c = 0;
+                foreach (Unit backer in backers)
+                    if (backer.Parents != null && backer.Parents.Contains(candidate))
+                        c++;
+
+                // Then this is the first unit in the sorted list of candidates
+                // that is visible to all nodes.
+                // NOTE It is a bit unclear if it must be visible to all nodes
+                // or to 2f+1 nodes. We're taking the 2f+1 nodes route.
+                if (c == _network.MinimumParents())
+                if (candidate.Parents != null) {
+                    return candidate;
                 }
             }
-
-            return candidates[0];
+            throw new System.Exception("Head unit could not be found.");
         }
 
         /// <summary>
@@ -182,7 +210,7 @@ namespace Aurem.chDAGs
         /// </summary>
         private void LinearOrdering()
         {
-
+            Unit head = ChooseHead();
         }
 
         /// <summary>
