@@ -64,6 +64,8 @@ namespace Aurem
             string graphsDir = config["graphsDirectory"] ?? "";
             bool stepByStepGraphs = false;
             _ = bool.TryParse(config["stepByStepGraphs"] ?? "false", out stepByStepGraphs);
+            bool unitPerRoundDiffColor = false;
+            _ = bool.TryParse(config["unitPerRoundDiffColor"] ?? "false", out unitPerRoundDiffColor);
 
             // Creating nodes to simulate the "minting" of units.
             Network network = new();
@@ -76,7 +78,6 @@ namespace Aurem
                 // NOTE The threads are being wrapped in tasks, so we can use Task.WaitAll.
                 // If there is a more optimal way to do this, feel free to report this.
                 List<Thread> threads = new();
-                // List<Task> tasks = new();
 
                 // Now we'll create units for each node.
                 // We are randomizing the order of each node for each iteration.
@@ -95,10 +96,10 @@ namespace Aurem
                 // Let's wait until all threads finish. We're simulating nodes
                 // running asynchronously, but we're waiting them to finish each
                 // round, for now.
-                while(!threads.TrueForAll((thread) => !thread.IsAlive )) { }
+                // while(!threads.TrueForAll((thread) => !thread.IsAlive )) { }
 
-                if (stepByStepGraphs)
-                    SaveGraphs(graphsDir, nodes);
+                // if (stepByStepGraphs)
+                //     SaveGraphs(graphsDir, nodes);
 
                 // If fixedRounds is set, also save a graph of the final chDAG.
                 // Note that if it's not set, c != fixedRounds always holds.

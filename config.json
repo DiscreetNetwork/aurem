@@ -2,5 +2,6 @@
   "numNodes": 5,
   "fixedRounds": 10,
   "graphsDirectory": "_Graphs",
-  "stepByStepGraphs": true
+  "stepByStepGraphs": true,
+  "unitPerRoundDiffColor": true
 }

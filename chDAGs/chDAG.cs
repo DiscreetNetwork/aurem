@@ -292,13 +292,13 @@ namespace Aurem.chDAGs
         /// UnitsEdge returns an edge between two units in a chDAG for a
         /// DotGraph.
         /// </summary>
-        private DotEdge UnitsEdge(DotNode node1, DotNode node2)
+        private DotEdge UnitsEdge(DotNode node1, DotNode node2, System.Drawing.Color color)
         {
             return new DotEdge(node1, node2)
             {
                 ArrowHead = DotEdgeArrowType.Diamond,
                 ArrowTail = DotEdgeArrowType.Empty,
-                Color = System.Drawing.Color.Violet,
+                Color = color,
                 FontColor = System.Drawing.Color.White,
                 Label = "",
                 Style = DotEdgeStyle.Solid,
@@ -309,15 +309,25 @@ namespace Aurem.chDAGs
         /// <summary>
         /// Creates a PNG of the chDAG and saves it to the specified path.
         /// </summary>
-        public void Save(string path) {
+        public void Save(string path)
+        {
+            Random random = new Random();
             var graph = new DotGraph("chDAG", true);
 
             Dictionary<Ulid, DotNode> nodes = new();
 
             // Adding units (nodes, in graph theory).
             for (int c = 0; c < Round; c++) {
-                foreach (Unit unit in _units[c]) {
+                // We want one of the units to have its edges in a different color,
+                // so it's more noticeable what's happening.
+                int diffColorNode = random.Next(0, _units[c].Count);
+
+                for (int i = 0; i < _units[c].Count; i++) {
+                    Unit unit = _units[c][i];
                     DotNode node = UnitToDotNode(unit);
+                    System.Drawing.Color color = System.Drawing.Color.Violet;
+                    if (diffColorNode == i)
+                        color = System.Drawing.Color.Red;
                     nodes[unit.Id] = node;
                     graph.Elements.Add(node);
 
@@ -325,7 +335,7 @@ namespace Aurem.chDAGs
                     if (unit.Parents != null)
                         foreach (Unit parent in unit.Parents) {
                             if (nodes.ContainsKey(parent.Id))
-                                graph.Elements.Add(UnitsEdge(nodes[parent.Id], node));
+                                graph.Elements.Add(UnitsEdge(nodes[parent.Id], node, color));
                         }
                 }
             }
