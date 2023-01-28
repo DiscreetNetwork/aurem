@@ -1,5 +1,6 @@
 ﻿using NUlid;
 using Aurem.Nodes;
+using Aurem.chDAGs;
 using Aurem.Networking;
 using Microsoft.Extensions.Configuration;
 
@@ -25,19 +26,6 @@ namespace Aurem
                 nodes.Add(new Node(Ulid.NewUlid(), network));
             }
             return nodes;
-        }
-
-        private void ShuffleNodes(List<Node> nodes)
-        {
-            Random rng = new Random();
-            int n = nodes.Count;
-            while (n > 1) {
-                n--;
-                int k = rng.Next(n + 1);
-                Node value = nodes[k];
-                nodes[k] = nodes[n];
-                nodes[n] = value;
-            }
         }
 
         private void SaveGraphs(string graphsDir, List<Node> nodes) {
@@ -71,47 +59,74 @@ namespace Aurem
             Network network = new();
             List<Node> nodes = InitNodes(numNodes, network);
 
-            bool cond = fixedRounds < 1;
+            // Syncing units for every node in an infinite loop.
+            // NOTE This will not be necessary later, as we should adopt a
+            // publisher-subscriber architecture or something similar, where
+            // we just listen to a publisher for new units, instead of requesting
+            // for units from a particular round.
+            bool runSync = true;
+            Thread sync = new Thread(() => {
+                while (runSync) {
+                    foreach (Node node in nodes) {
+                        chDAG chDAG = node.GetChDAG();
+                        int round = chDAG.Round;
+                        int lastN = 4;
+                        int c = round - lastN;
+                        if (round < lastN) {
+                            c = 0;
+                        }
+                        for ( ; c < round; c++)
+                            chDAG.Sync(c);
+                    }
+                }
+            });
+            sync.Start();
+
+            List<Thread> threads = new();
+            int threadIdx = 0;
 
             // Run forever or fixedRounds times.
             for (int c = 0; c < fixedRounds || fixedRounds < 1; c++) {
-                // NOTE The threads are being wrapped in tasks, so we can use Task.WaitAll.
-                // If there is a more optimal way to do this, feel free to report this.
-                List<Thread> threads = new();
 
                 // Now we'll create units for each node.
                 // We are randomizing the order of each node for each iteration.
                 // The purpose of this is to simulate an asynchronous behavior.
-                // TODO Create method Network.ShuffleNodes().
-                ShuffleNodes(nodes);
+                // network.ShuffleNodes();
                 foreach (Node node in nodes) {
-                    // TODO Simulate high latencies.
-                    // We don't care about what data we store for this PoC.
                     threads.Add(new Thread(() => {
+                        // Simulating latency.
+                        Thread.Sleep(random.Next(0, 1500));
+                        // We don't care about what data we store for this PoC.
                         node.CreateUnit(new byte[1]{ (byte)random.Next(0, 255) });
-                        // Thread.Sleep(random.Next(0, 3000));
                     }));
                 }
-                foreach (Thread thread in threads) { thread.Start(); }
-                // Let's wait until all threads finish. We're simulating nodes
-                // running asynchronously, but we're waiting them to finish each
-                // round, for now.
-                // while(!threads.TrueForAll((thread) => !thread.IsAlive )) { }
+                for ( int i = threadIdx; i < threads.Count; i++ )
+                    threads[i].Start();
+                threadIdx += nodes.Count;
 
+                // FIXME Saving step by step needs to be performed when adding
+                // the unit.
                 // if (stepByStepGraphs)
                 //     SaveGraphs(graphsDir, nodes);
+            }
 
-                // If fixedRounds is set, also save a graph of the final chDAG.
-                // Note that if it's not set, c != fixedRounds always holds.
-                if (c == fixedRounds-1 && !stepByStepGraphs) {
-                    SaveGraphs(graphsDir, nodes);
-                }
+            // Wait for all the threads to finish execution.
+            while(!threads.TrueForAll((thread) => !thread.IsAlive )) { }
+            runSync = false;
+
+            // Reporting any byzantine units found.
+            network.ReportByzantine();
+
+            // If fixedRounds is set, also save a graph of the final chDAG.
+            // Note that if it's not set, c != fixedRounds always holds.
+            if (fixedRounds > 0) {
+                SaveGraphs(graphsDir, nodes);
             }
         }
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Running");
+            Console.WriteLine("Running Aurem");
             Program prgrm = new();
             prgrm.Run();
             Console.WriteLine("Done");

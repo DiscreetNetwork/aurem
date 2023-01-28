@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Linq;
 using NUlid;
 using DotNetGraph;
 using DotNetGraph.Node;
@@ -62,20 +61,21 @@ namespace Aurem.chDAGs
                     if (units.GetHashCode() == _units[round].GetHashCode()) continue;
 
                     foreach (Unit unit in units) {
-                        if (!IsValidUnit(unit))
-                            // TODO Discuss what we should do with Byzantine nodes.
-                            throw new System.Exception("Possible Byzantine unit received.");
-                        if (!_units[round].Contains(unit))
+                        if (unit.Round != 0 && unit.Round < Round-3 && !IsValidUnit(unit)) {
+                            // Reporting the byzantine unit.
+                            _network.AddByzantine(_owner.Id, unit);
+                            // FIXME Commenting this so it gets added anyway.
+                            // We'll just report the unit for now.
+                            // return;
+                        }
+                        if (!_units[round].Contains(unit)) {
                             _units[round].Add(unit);
+                        }
+
                     }
                 }
             }
         }
-
-        // The number of required parents when creating a new unit in the DAG.
-        // The minimum should be equal to (N-(N-1)/3), derived from the formula
-        // N = 3f+1, where f is the number of Byzantine nodes and N is the total
-        // number of node creators.
 
         /// <summary>
         /// We poll the network to check if we have enough parents to create a
@@ -93,49 +93,44 @@ namespace Aurem.chDAGs
         /// </summary>
         public void Add(Unit unit)
         {
-            unit.Round = Round;
             // TODO Refactor this.
             if (Round == 0) {
-                if (!_units.ContainsKey(Round)) {
-                    _units[Round] = new List<Unit>();
+                lock (_lock) {
+                    unit.Round = Round;
+                    if (!_units.ContainsKey(Round)) {
+                        _units[Round] = new List<Unit>();
+                    }
+                    _units[Round++].Add(unit);
+                    return;
                 }
-                _units[Round].Add(unit);
-                Round++;
-                return;
             }
             // We need to check if this is a new instance of a DAG.
             // If it's new, then a new unit cannot have parents.
+            // TODO Refactor this. This needs to go outside this method. Then we
+            // call chDAG.Add after isEnoughNodes is true.
             if (Round != 0) {
                 bool isEnoughNodes = IsMinimumParents();
                 while (!isEnoughNodes) {
-                    lock (_lock) Sync(Round-1);
-                    isEnoughNodes = IsMinimumParents();
+                    lock (_lock) isEnoughNodes = IsMinimumParents();
                 }
-                // TODO We need to capture a snapshot of all the latest
-                // information we have from the chDAG, not just 2f+1 units from
-                // r-1. If we haven't received some units from some nodes in
-                // r-1, we have to use the latest units that we have received
-                // from them.
-                // unit.Parents = _units[Round-1].Take(_network.MinimumParents()).ToList();
-                unit.Parents = GetParents();
             }
 
             lock (_lock) {
+                unit.Round = Round;
+                unit.Parents = GetParents();
                 if (!_units.ContainsKey(Round)) {
                     _units[Round] = new List<Unit>();
                 }
 
-                // NOTE This will not be necessary later, as we should adopt a
-                // publisher-subscriber architecture or something similar, where
-                // we just listen to a publisher for new units, instead of requesting
-                // for units from a particular round.
-                // NOTE We're using -4 rounds, because this should be more than enough
-                // for completely updating any missing past units for this PoC.
-                for (int c = Round - 4; c < Round && c > 0; c++)
-                    Sync(c);
-
-                _units[Round].Add(unit);
-                Round++;
+                // Simulating malicious node.
+                Random random = new Random();
+                if (random.NextDouble() < 0.05) {
+                    Unit forgedUnit = new Unit(_owner.Id, new byte[1]{ (byte)random.Next(0, 255) });
+                    forgedUnit.Round = Round;
+                    _units[Round++].Add(forgedUnit);
+                } else {
+                    _units[Round++].Add(unit);
+                }
             }
         }
 
@@ -254,16 +249,33 @@ namespace Aurem.chDAGs
             if (unit.Round == 0)
                 return true;
             // If no parent, the unit is obviously invalid.
-            if (unit.Parents == null)
+            if (unit.Parents == null || unit.Parents.Count == 0)
                 return false;
             int round = unit.Round;
             // Checking if the previous round in the local chDAG contains all of
-            // the unit's parents.
+            // the unit's parents, or if any sibling of this unit knows the parents.
+            int confirmedCount = 0;
             foreach (Unit parent in unit.Parents) {
-                if (!_units[round-1].Any(x => x.Id == parent.Id))
-                    return false;
+                // Checking if we have the actual unit in the local chDAG.
+                if (_units[round-1].Any(x => x.Id == parent.Id)) {
+                    confirmedCount++;
+                    continue;
+                }
+                // Checking if any other unit in the same round has a reference
+                // to the parent. This means that that node has the unit in its
+                // local chDAG.
+                foreach (Unit sibling in _units[round]) {
+                    // NOTE We don't need to check if sibling == unit, because
+                    // we haven't added the unit yet.
+                    if (sibling.Parents == null) continue;
+                    if (sibling.Parents.Any(x => x.Id == parent.Id)) {
+                        confirmedCount++;
+                        break;
+                    }
+                }
             }
-            return true;
+            // Check if we have at least references to 2f+1 parents.
+            return confirmedCount >= _network.MinimumParents();
         }
 
         /// <summary>
@@ -273,7 +285,8 @@ namespace Aurem.chDAGs
         private DotNode UnitToDotNode(Unit unit)
         {
             // TODO Display something more meaningful on the unit.
-            string unitId = $"{unit.Round} [ {unit.Data[0]} ]";
+            string creatorId = unit.CreatorId.ToString();
+            string unitId = $"{creatorId.Substring(creatorId.Length - 3)} {unit.Round} [ {unit.Data[0]} ]";
             return new DotNode(unitId)
             {
                 Shape = DotNodeShape.Ellipse,
@@ -345,8 +358,8 @@ namespace Aurem.chDAGs
             // A quick hack is to insert the option directly.
             dot = dot.Insert(dot.IndexOf("\n") + 1, "rankdir=LR;\n");
             dot = dot.Insert(dot.IndexOf("\n") + 1, "bgcolor=black;\n");
-            // Saving to file.
 
+            // Saving to file.
             Random rand = new Random();
             File.WriteAllText(Path.Combine(path, $"{this._id}_{Ulid.NewUlid()}.dot"), dot);
         }
