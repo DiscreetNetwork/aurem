@@ -2,6 +2,7 @@
 using Aurem.Nodes;
 using Aurem.chDAGs;
 using Aurem.Networking;
+using Aurem.Randomness;
 using Microsoft.Extensions.Configuration;
 
 /// <summary>
@@ -126,10 +127,16 @@ namespace Aurem
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Running Aurem");
-            Program prgrm = new();
-            prgrm.Run();
-            Console.WriteLine("Done");
+            ThresholdSignature ts = new(10, 15);
+            (VerificationKey vk, List<SecretKey> sks) = ts.GenerateKeys();
+
+            // Console.WriteLine(vk);
+            // Console.WriteLine(sks);
+
+            // Console.WriteLine("Running Aurem");
+            // Program prgrm = new();
+            // prgrm.Run();
+            // Console.WriteLine("Done");
         }
     }
 
