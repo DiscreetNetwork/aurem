@@ -1,11 +1,25 @@
 # Aurem
 
-Instructions for running:
+These instructions assume:
+- `libff` header files are located at `/usr/local/include/libff`
+- `libff` is located at `/usr/local/lib`
+- .NET 7.0 is installed. It should also work with .NET 6.0, though.
+- Linux.
 
+Instructions:
+
+- Install [libff](https://github.com/scipr-lab/libff)
 - Set desired parameters in `config.json`
   - `numNodes`: how many nodes to simulate in the network
   - `fixedRounds`: `-1` to run forever, `fixedRounds > 0` to run a finite number of rounds
   - `graphsDirectory`: the name of the directory (inside `$HOME`) to store the generated chDAGs
+- `dotnet build`
+- To compile `AuremCore`:
+
+``` shell
+g++ -shared -fPIC -I/usr/local/include/libff -L/usr/local/lib -Wl,-rpath=/usr/local/lib AuremCore/AuremCore.cpp -lff -lgmp -o bin/Debug/net7.0/AuremCore.so
+```
+
 - `dotnet run`
 - `./graphs.sh compile` to create PNGs from the generated Graphviz dotfiles
 - `./graphs.sh clean` to delete the graphs directory and its contents
