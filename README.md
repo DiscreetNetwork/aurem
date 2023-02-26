@@ -13,7 +13,7 @@ Instructions:
   - `numNodes`: how many nodes to simulate in the network
   - `fixedRounds`: `-1` to run forever, `fixedRounds > 0` to run a finite number of rounds
   - `graphsDirectory`: the name of the directory (inside `$HOME`) to store the generated chDAGs
-- `dotnet build`
+- `dotnet build -p:StartupObject=Aurem.Program`
 - To compile `AuremCore`:
 
 ``` shell
@@ -31,6 +31,12 @@ A recommendation is to run
 ```
 
 to remove previous graphs, and generate and compile new ones.
+
+To run tests:
+
+``` shell
+dotnet test -p:StartupObject=Aurem.Program
+```
 
 # Notes
 
