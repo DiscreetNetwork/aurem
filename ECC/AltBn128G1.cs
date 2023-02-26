@@ -8,13 +8,8 @@ namespace Aurem.ECC
     [StructLayout(LayoutKind.Sequential)]
     public struct AltBn128G1
     {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public ulong[] X;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public ulong[] Y;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public ulong[] Z;
+        public BigInt X;
+        public BigInt Y;
+        public BigInt Z;
     }
 }

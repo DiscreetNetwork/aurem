@@ -56,8 +56,6 @@ libff::bigint<BIS> EvaluatePolynomial(std::vector<libff::bigint<BIS>> coefficien
 // Utility functions.
 
 void PrintWords(mp_limb_t words[BIS]) {
-  // Converting from vector<uint64_t> to uint256.
-  // std::vector<uint64_t> x_words = vk.X.to_words();
   uint256_t x = 0;
   for (int i = 7; i >= 0; i--) {
     x <<= 64;
