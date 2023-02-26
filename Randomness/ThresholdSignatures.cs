@@ -15,33 +15,42 @@ namespace Aurem.Randomness
 {
     /// <summary>
     /// </summary>
-    class ThresholdSignature
+    class BN254
     {
-        private int threshold;
-        private int nParties;
-        private FpCurve curve;
-        private BigInteger p;
-        private BigInteger a;
-        private BigInteger b;
-        private BigInteger q;
-        private BigInteger h;
-        private ECPoint G;
+        public BigInteger p;
+        public BigInteger a;
+        public BigInteger b;
+        public BigInteger q;
+        public BigInteger h;
+        public ECPoint G;
 
-        public ThresholdSignature(int _threshold, int _nParties)
+        public FpCurve Curve;
+
+        public BN254()
         {
-            threshold = _threshold;
-            nParties = _nParties;
-
-            // BN254
-            // TODO But still check, because it says the alternative name is
-            // Fp254BNb, not alt-BN128, for example. Just double check.
             p = new BigInteger("16798108731015832284940804142231733909889187121439069848933715426072753864723");
             a = new BigInteger("0");
             b = new BigInteger("2");
             q = new BigInteger("16798108731015832284940804142231733909759579603404752749028378864165570215949");
             h = new BigInteger("1");
-            curve = new FpCurve(p, a, b, q, h);
-            G = curve.CreatePoint(new BigInteger("16798108731015832284940804142231733909889187121439069848933715426072753864722"), new BigInteger("1"));
+            Curve = new FpCurve(p, a, b, q, h);
+            G = Curve.CreatePoint(new BigInteger("16798108731015832284940804142231733909889187121439069848933715426072753864722"), new BigInteger("1"));
+        }
+    }
+
+    /// <summary>
+    /// </summary>
+    class ThresholdSignature
+    {
+        private int threshold;
+        private int nParties;
+        private BN254 curve;
+
+        public ThresholdSignature(int _threshold, int _nParties)
+        {
+            threshold = _threshold;
+            nParties = _nParties;
+            curve = new BN254();
         }
 
         /// <summary>
@@ -55,7 +64,7 @@ namespace Aurem.Randomness
             List<BigInteger> ZRs = new();
             for (int c = 0; c < threshold; c++) {
                 BigInteger r = new BigInteger(512, secureRandom);
-                ZRs.Add(r.Mod(q));
+                ZRs.Add(r.Mod(curve.q));
             }
             BigInteger secret = ZRs[ZRs.Count-1];
 
@@ -65,11 +74,23 @@ namespace Aurem.Randomness
                 sks.Add(EvaluatePolynomial(ZRs, BigInteger.ValueOf(c)));
 
             // Generating verification keys.
-            var vk = G.Multiply(secret);
+            var vk = curve.G.Multiply(secret);
             List<ECPoint> vks = new();
 
+            // Normalizing to have affine coordinates.
+            // Console.WriteLine(vk.Normalize().AffineXCoord.ToBigInteger());
+            // Console.WriteLine(vk.Normalize().AffineYCoord.ToBigInteger());
+            // Console.WriteLine(vk.XCoord.ToString());
+            // Console.WriteLine(vk.YCoord.ToString());
+            // Console.WriteLine(vk.GetZCoord(0).ToString());
+            byte[] bs = new byte[65];
+            // vk.EncodeTo(false, bs, 0);
+            bs = vk.GetEncoded();
+            // vk.
+            Console.WriteLine(bs.ToString());
+
             foreach (BigInteger sk in sks)
-                vks.Add(G.Multiply(sk));
+                vks.Add(curve.G.Multiply(sk));
 
             VerificationKey verificationKey = new(threshold, vk, vks);
             List<SecretKey> secretKeys = new();
@@ -98,11 +119,13 @@ namespace Aurem.Randomness
         private int threshold;
         private ECPoint vk;
         private List<ECPoint> vks;
+        private BN254 curve;
 
         public VerificationKey(int _threshold, ECPoint _vk, List<ECPoint> _vks) {
             threshold = _threshold;
             vk = _vk;
             vks = _vks;
+            curve = new BN254();
         }
 
         private byte[] HashString(string input) {
@@ -117,12 +140,12 @@ namespace Aurem.Randomness
         private ECPoint HashToG1(string message)
         {
             // TODO Also initialize a BN254 curve for this class.
-            var curve = Org.BouncyCastle.Asn1.Sec.SecNamedCurves.GetByName("secp256k1");
+            // var curve = Org.BouncyCastle.Asn1.Sec.SecNamedCurves.GetByName("secp256k1");
             ECPoint g1 = curve.G.Normalize();
             // ECPoint g2 = curve.G.Normalize().Twice().Normalize();
             byte[] hash = HashString(message);
             BigInteger x = new BigInteger(1, hash);
-            BigInteger k = x.Mod(curve.N);
+            BigInteger k = x.Mod(curve.q);
 
             // return curve.G.Multiply(k);
             return g1.Multiply(k);

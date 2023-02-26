@@ -39,6 +39,7 @@ extern "C" {
   EXPORT AltBn128G1 G1();
   EXPORT AltBn128G2 G2();
   EXPORT BigInt Order();
+  EXPORT BigInt RandomBigInt();
 
 #ifdef __cplusplus
 }

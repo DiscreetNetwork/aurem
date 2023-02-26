@@ -14,7 +14,10 @@ namespace Aurem.ECC.Native
         public static extern AltBn128G1 G2();
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
-        public static extern AltBn128G1 Order();
+        public static extern BigInt Order();
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern BigInt RandomBigInt();
 
     }
 
@@ -24,18 +27,17 @@ namespace Aurem.ECC.Native
 
         private static IntPtr _handle = IntPtr.Zero;
 
-        // public delegate Bigint ScalarMulDelegate(alt_bn128_G2);
-
-        // public delegate Int32 MeowDelegate(Int32 num1, Int32 num2);
         public delegate void InitDelegate();
         public delegate AltBn128G1 G1Delegate();
-        public delegate AltBn128G1 G2Delegate();
+        public delegate AltBn128G2 G2Delegate();
         public delegate BigInt OrderDelegate();
+        public delegate BigInt RandomBigIntDelegate();
 
         public InitDelegate Init;
         public G1Delegate G1;
         public G2Delegate G2;
         public OrderDelegate Order;
+        public RandomBigIntDelegate RandomBigInt;
 
         static Native()
         {
@@ -74,6 +76,11 @@ namespace Aurem.ECC.Native
                 Instance.Order = Marshal.GetDelegateForFunctionPointer<OrderDelegate>(_OrderHandle);
             else
                 Instance.Order = () => { throw new EntryPointNotFoundException("failed to find endpoint \"Order\" in library \"AuremCore\""); };
+
+            if (NativeLibrary.TryGetExport(_handle, "RandomBigInt", out IntPtr _RandomBigIntHandle))
+                Instance.RandomBigInt = Marshal.GetDelegateForFunctionPointer<RandomBigIntDelegate>(_RandomBigIntHandle);
+            else
+                Instance.RandomBigInt = () => { throw new EntryPointNotFoundException("failed to find endpoint \"RandomBigInt\" in library \"AuremCore\""); };
         }
 
         private bool disposedValue;

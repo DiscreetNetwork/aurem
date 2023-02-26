@@ -1,4 +1,5 @@
-﻿using NUlid;
+﻿using System.Numerics;
+using NUlid;
 using Aurem.Nodes;
 using Aurem.chDAGs;
 using Aurem.Networking;
@@ -127,6 +128,16 @@ namespace Aurem
             }
         }
 
+        private static BigInteger ToBigInteger(BigInt n)
+        {
+            BigInteger x = 0;
+            for (int i = 7; i >= 0; i--) {
+                x <<= 64;
+                x |= n.Words[i];
+            }
+            return x;
+        }
+
         static void Main(string[] args)
         {
             ThresholdSignature ts = new(10, 15);
@@ -134,6 +145,9 @@ namespace Aurem
 
             Native.Instance.Init();
             AltBn128G1 G1 = Native.Instance.G1();
+            AltBn128G2 G2 = Native.Instance.G2();
+            BigInt r = Native.Instance.Order();
+            // Console.WriteLine(ToBigInteger(r));
 
             // Console.WriteLine(vk);
             // Console.WriteLine(sks);

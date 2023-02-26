@@ -1,5 +1,3 @@
-// g++ -shared -fPIC AuremCore/AuremCore.cpp AuremCore/AuremCore.h -o bin/Debug/net7.0/AuremCore.so
-
 #include "AuremCore.h"
 
 #include <gmp.h>
@@ -61,8 +59,8 @@ void PrintWords(mp_limb_t words[BIS]) {
   // Converting from vector<uint64_t> to uint256.
   // std::vector<uint64_t> x_words = vk.X.to_words();
   uint256_t x = 0;
-  for (int i = WS-1; i >= 0; i--) {
-    x <<= WS*8;
+  for (int i = 7; i >= 0; i--) {
+    x <<= 64;
     x |= words[i];
   }
   std::cout << "PrintWords:\n" << x << "\n";
@@ -143,6 +141,12 @@ AltBn128G2 G2() {
 BigInt Order() {
   // Both G1 and G2 have the same order in the case of alt_bn128.
   return toBigInt(alt_bn128_G1::order());
+}
+
+BigInt RandomBigInt() {
+  libff::bigint<BIS> _n;
+  _n.randomize();
+  return toBigInt(_n);
 }
 
 void _test() {
