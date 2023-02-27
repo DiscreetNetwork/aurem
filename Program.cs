@@ -3,7 +3,6 @@ using Aurem.Nodes;
 using Aurem.chDAGs;
 using Aurem.Networking;
 using Aurem.Randomness;
-using Aurem.ECC;
 using Aurem.ECC.Native;
 using Microsoft.Extensions.Configuration;
 
@@ -129,13 +128,10 @@ namespace Aurem
 
         static void Main(string[] args)
         {
+            Native.Instance.Init();
+
             ThresholdSignature ts = new(10, 15);
             (VerificationKey vk, List<SecretKey> sks) = ts.GenerateKeys();
-
-            Native.Instance.Init();
-            AltBn128G1 G1 = Native.Instance.G1();
-            AltBn128G2 G2 = Native.Instance.G2();
-            BigInt r = Native.Instance.Order();
 
             // Console.WriteLine(vk);
             // Console.WriteLine(sks);

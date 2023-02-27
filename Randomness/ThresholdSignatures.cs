@@ -1,11 +1,11 @@
 using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Generators;
-using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Math.EC;
 using Org.BouncyCastle.Security;
 using System.Text;
+using Aurem.ECC;
+using Aurem.ECC.Native;
 
 /// <summary>
 /// Implementation of components needed to achieve Common Randomness for Common
@@ -58,55 +58,72 @@ namespace Aurem.Randomness
         /// </summary>
         public (VerificationKey vkey, List<SecretKey> skeys) GenerateKeys()
         {
-            SecureRandom secureRandom = new SecureRandom();
-
             // Generating a set of coefficients.
-            List<BigInteger> ZRs = new();
+            List<BigInt> ZRs = new();
             for (int c = 0; c < threshold; c++) {
-                BigInteger r = new BigInteger(512, secureRandom);
-                ZRs.Add(r.Mod(curve.q));
+                ZRs.Add(Native.Instance.RandomCoefficient());
             }
-            BigInteger secret = ZRs[ZRs.Count-1];
+            BigInt secret = ZRs[threshold-1];
 
             // Generating secret keys.
-            List<BigInteger> sks = new();
-            for (int c = 1; c < nParties + 1; c++)
-                sks.Add(EvaluatePolynomial(ZRs, BigInteger.ValueOf(c)));
+            List<BigInt> sks = new();
+            for (ulong c = 1; c < (ulong)nParties + 1; c++)
+                // sks[c-1] = Native.Instance.EvaluatePolynomial(ZRs, new BigInt(c));
+                sks.Add(EvaluatePolynomial(ZRs, new BigInt(c)));
 
-            // Generating verification keys.
-            var vk = curve.G.Multiply(secret);
-            List<ECPoint> vks = new();
+            // for (int c = 0; c < sks.Count; c++)
+            //     sks[c].Print();
 
-            // Normalizing to have affine coordinates.
-            // Console.WriteLine(vk.Normalize().AffineXCoord.ToBigInteger());
-            // Console.WriteLine(vk.Normalize().AffineYCoord.ToBigInteger());
-            // Console.WriteLine(vk.XCoord.ToString());
-            // Console.WriteLine(vk.YCoord.ToString());
-            // Console.WriteLine(vk.GetZCoord(0).ToString());
-            byte[] bs = new byte[65];
-            // vk.EncodeTo(false, bs, 0);
-            bs = vk.GetEncoded();
-            // vk.
-            Console.WriteLine(bs.ToString());
+            // SecureRandom secureRandom = new SecureRandom();
+            // // Generating a set of coefficients.
+            // List<BigInteger> ZRs = new();
+            // for (int c = 0; c < threshold; c++) {
+            //     BigInteger r = new BigInteger(512, secureRandom);
+            //     ZRs.Add(r.Mod(curve.q));
+            // }
+            // BigInteger secret = ZRs[ZRs.Count-1];
 
-            foreach (BigInteger sk in sks)
-                vks.Add(curve.G.Multiply(sk));
+            // // Generating secret keys.
+            // List<BigInteger> sks = new();
+            // for (int c = 1; c < nParties + 1; c++)
+            //     sks.Add(EvaluatePolynomial(ZRs, BigInteger.ValueOf(c)));
 
-            VerificationKey verificationKey = new(threshold, vk, vks);
-            List<SecretKey> secretKeys = new();
+            // // Generating verification keys.
+            // var vk = curve.G.Multiply(secret);
+            // List<ECPoint> vks = new();
 
-            foreach(BigInteger sk in sks)
-                secretKeys.Add(new SecretKey(sk));
+            // // Normalizing to have affine coordinates.
+            // // Console.WriteLine(vk.Normalize().AffineXCoord.ToBigInteger());
+            // // Console.WriteLine(vk.Normalize().AffineYCoord.ToBigInteger());
+            // // Console.WriteLine(vk.XCoord.ToString());
+            // // Console.WriteLine(vk.YCoord.ToString());
+            // // Console.WriteLine(vk.GetZCoord(0).ToString());
+            // byte[] bs = new byte[65];
+            // // vk.EncodeTo(false, bs, 0);
+            // bs = vk.GetEncoded();
+            // // vk.
+            // Console.WriteLine(bs.ToString());
 
-            return (new VerificationKey(threshold, vk, vks), new List<SecretKey>());
+            // foreach (BigInteger sk in sks)
+            //     vks.Add(curve.G.Multiply(sk));
+
+            // VerificationKey verificationKey = new(threshold, vk, vks);
+            // List<SecretKey> secretKeys = new();
+
+            // foreach(BigInteger sk in sks)
+            //     secretKeys.Add(new SecretKey(sk));
+
+            // return (new VerificationKey(threshold, vk, vks), new List<SecretKey>());
+            ECPoint xx = curve.G.Multiply(BigInteger.One);
+            return (new VerificationKey(0, xx, new List<ECPoint>()), new List<SecretKey>());
         }
 
-        private BigInteger EvaluatePolynomial(List<BigInteger> coefficients, BigInteger x)
+        private BigInt EvaluatePolynomial(List<BigInt> coefficients, BigInt x)
         {
-            BigInteger result = BigInteger.ValueOf(0);
+            BigInt result = new BigInt(0);
             for (int c = 0; c < coefficients.Count; c++) {
                 // x * y + coef, and we reduce.
-                result = result.Add(coefficients[c].Add(x.Multiply(result)));
+                result = Native.Instance.ModOrder(BigInt.Add(result, BigInt.Add(coefficients[c], BigInt.Multiply(x, result))));
             }
             return result;
         }
