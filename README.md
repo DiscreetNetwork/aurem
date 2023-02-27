@@ -1,5 +1,12 @@
 # Aurem
+Aurem is a confidential proof-of-stake ("CPoS") mechanism that builds on the work of Aleph Zero's [AlephBFT](https://github.com/aleph-zero-foundation/AlephBFT) and Dusk Network's [PoBB](https://github.com/dusk-network/dusk-blindbid) mechanism. It DAG-based aBFT consensus that ensures three vital parameters in digital currencies.
+- Complete privacy of your *bid* (stake) making sure no network participant can see how much currency was staked.
+- Instant finality in a round, ensuring fast, reliable, confirmation of a transaction.
+- Unpermissioned committees, allowing anyone to become a validator through Aleph's randomness beacon with the head minter selected based on their bid.
 
+Aurem also enforces ring-member selection enforcement at the consensus layer, guaranteeing transaction uniformity to the distribution, selected by the decoy selection algorithm ("DSA"), and provides stronger guarantees that all clients conform to the specification. This greatly mitigates the effects of dusting/flooding attacks for the network, and helps increase privacy for older unspent UTXOs.
+
+# Setup instructions
 These instructions assume:
 - `libff` header files are located at `/usr/local/include/libff`
 - `libff` is located at `/usr/local/lib`
@@ -44,3 +51,4 @@ dotnet test -p:StartupObject=Aurem.Program
   (entry-point). For instance, the rest of the source code files never access
   any of the configuration parameters stored in `config.json`.
 * `graphs.sh` only works for *nix systems.
+* The current repository **does not represent the final state of Aurem**.
