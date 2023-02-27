@@ -28,5 +28,14 @@ namespace Aurem.Tests
             Assert.Equal(BigInt.ToBigInteger(G1.Y), BigInteger.Parse("2"));
             Assert.Equal(BigInt.ToBigInteger(G1.Z), BigInteger.Parse("1"));
         }
+
+        [Fact]
+        public void TestBigInt()
+        {
+            BigInt n = new BigInt(123123123);
+            Assert.Equal(BigInt.ToBigInteger(new BigInt(123123123)), 123123123);
+            Assert.Equal(BigInt.ToBigInteger(BigInt.Add(n, n)), 246246246);
+            Assert.Equal(BigInt.ToBigInteger(BigInt.Multiply(n, new BigInt(2))), 246246246);
+        }
     }
 }
