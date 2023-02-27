@@ -17,8 +17,16 @@ namespace Aurem.ECC.Native
         public static extern BigInt Order();
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
-        public static extern BigInt RandomBigInt();
-
+        public static extern BigInt RandomFq();
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern BigInt RandomFq2();
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern BigInt RandomCoefficient();
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern BigInt EvaluatePolynomial([MarshalAs(UnmanagedType.Struct)]BigInt n);
     }
 
     public class Native : IDisposable
@@ -31,13 +39,20 @@ namespace Aurem.ECC.Native
         public delegate AltBn128G1 G1Delegate();
         public delegate AltBn128G2 G2Delegate();
         public delegate BigInt OrderDelegate();
-        public delegate BigInt RandomBigIntDelegate();
+        public delegate BigInt RandomCoefficientDelegate();
+        public delegate BigInt ModOrderDelegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
 
         public InitDelegate Init;
         public G1Delegate G1;
         public G2Delegate G2;
         public OrderDelegate Order;
-        public RandomBigIntDelegate RandomBigInt;
+        public RandomCoefficientDelegate RandomCoefficient;
+        public ModOrderDelegate ModOrder;
+
+        private static EntryPointNotFoundException notFound(string name)
+        {
+            return new EntryPointNotFoundException($"failed to find endpoint \"{name}\" in library \"AuremCore\"");
+        }
 
         static Native()
         {
@@ -60,27 +75,32 @@ namespace Aurem.ECC.Native
             if (NativeLibrary.TryGetExport(_handle, "Init", out IntPtr _InitHandle))
                 Instance.Init = Marshal.GetDelegateForFunctionPointer<InitDelegate>(_InitHandle);
             else
-                Instance.Init = () => { throw new EntryPointNotFoundException("failed to find endpoint \"Init\" in library \"AuremCore\""); };
+                Instance.Init = () => { throw notFound("Init"); };
 
             if (NativeLibrary.TryGetExport(_handle, "G1", out IntPtr _G1Handle))
                 Instance.G1 = Marshal.GetDelegateForFunctionPointer<G1Delegate>(_G1Handle);
             else
-                Instance.G1 = () => { throw new EntryPointNotFoundException("failed to find endpoint \"G1\" in library \"AuremCore\""); };
+                Instance.G1 = () => { throw notFound("G1"); };
 
             if (NativeLibrary.TryGetExport(_handle, "G2", out IntPtr _G2Handle))
                 Instance.G2 = Marshal.GetDelegateForFunctionPointer<G2Delegate>(_G2Handle);
             else
-                Instance.G2 = () => { throw new EntryPointNotFoundException("failed to find endpoint \"G2\" in library \"AuremCore\""); };
+                Instance.G2 = () => { throw notFound("G2"); };
 
             if (NativeLibrary.TryGetExport(_handle, "Order", out IntPtr _OrderHandle))
                 Instance.Order = Marshal.GetDelegateForFunctionPointer<OrderDelegate>(_OrderHandle);
             else
-                Instance.Order = () => { throw new EntryPointNotFoundException("failed to find endpoint \"Order\" in library \"AuremCore\""); };
+                Instance.Order = () => { throw notFound("Order"); };
 
-            if (NativeLibrary.TryGetExport(_handle, "RandomBigInt", out IntPtr _RandomBigIntHandle))
-                Instance.RandomBigInt = Marshal.GetDelegateForFunctionPointer<RandomBigIntDelegate>(_RandomBigIntHandle);
+            if (NativeLibrary.TryGetExport(_handle, "RandomCoefficient", out IntPtr _RandomCoefficientHandle))
+                Instance.RandomCoefficient = Marshal.GetDelegateForFunctionPointer<RandomCoefficientDelegate>(_RandomCoefficientHandle);
             else
-                Instance.RandomBigInt = () => { throw new EntryPointNotFoundException("failed to find endpoint \"RandomBigInt\" in library \"AuremCore\""); };
+                Instance.RandomCoefficient = () => { throw notFound("RandomCoefficient"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "ModOrder", out IntPtr _ModOrderHandle))
+                Instance.ModOrder = Marshal.GetDelegateForFunctionPointer<ModOrderDelegate>(_ModOrderHandle);
+            else
+                Instance.ModOrder = (BigInt n) => { throw notFound("ModOrder"); };
         }
 
         private bool disposedValue;

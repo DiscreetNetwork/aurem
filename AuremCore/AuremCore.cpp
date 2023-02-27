@@ -16,43 +16,6 @@
 using namespace boost::multiprecision;
 using namespace libff;
 
-libff::bigint<BIS> EvaluatePolynomial(std::vector<libff::bigint<BIS>> coefficients, libff::bigint<BIS> x) {
-  bigint<BIS> result;
-  mpz_t mpz_result;
-  mpz_t mpz_x;
-  mpz_t mpz_order;
-
-  // Initializing.
-  mpz_init_set_ui(mpz_result, 0);
-  mpz_init_set_ui(mpz_x, 0);
-  mpz_init_set_ui(mpz_order, 0);
-
-  alt_bn128_G1::order().to_mpz(mpz_order);
-  x.to_mpz(mpz_x);
-
-  mpz_t mpz_coef;
-  mpz_t tmp;
-  mpz_init_set_ui(mpz_coef, 0);
-  mpz_init_set_ui(tmp, 0);
-
-  for (size_t c = 0; c < coefficients.size(); ++c) {
-    coefficients[c].to_mpz(mpz_coef);
-
-    mpz_set(tmp, mpz_result);
-
-    // result = result + coefficients[c] + mul(result, x);
-    mpz_mul(mpz_result, mpz_result, mpz_x);
-    mpz_add(mpz_result, mpz_result, mpz_coef);
-    mpz_add(mpz_result, mpz_result, tmp);
-  }
-  // mpz_clear(mpz_coef);
-  // mpz_clear(tmp);
-
-  mpz_mod(mpz_result, mpz_result, mpz_order);
-
-  return bigint<BIS>(mpz_result);
-}
-
 // Utility functions.
 
 void PrintWords(mp_limb_t words[BIS]) {
@@ -97,6 +60,10 @@ BigInt toBigInt(bigint<BIS> n) {
   return _n;
 }
 
+BigInt toBigInt(mpz_t n) {
+  return toBigInt(bigint<BIS>(n));
+}
+
 bigint<BIS> fromBigInt(BigInt n) {
   bigint<BIS> _n;
   for (int c = 0; c < BIS; c++) {
@@ -121,30 +88,107 @@ AltBn128G2 toG2(alt_bn128_G2 p) {
   return _p;
 }
 
+bigint<BIS> EvaluatePolynomial(std::vector<libff::bigint<BIS>> coefficients, libff::bigint<BIS> x) {
+  bigint<BIS> result;
+  mpz_t mpz_result;
+  mpz_t mpz_x;
+  mpz_t mpz_order;
+
+  std::cout << "1\n";
+
+  // Initializing.
+  mpz_init_set_ui(mpz_result, 0);
+  mpz_init_set_ui(mpz_x, 0);
+  mpz_init_set_ui(mpz_order, 0);
+
+  alt_bn128_G1::order().to_mpz(mpz_order);
+  x.to_mpz(mpz_x);
+
+  mpz_t mpz_coef;
+  mpz_t tmp;
+  mpz_init_set_ui(mpz_coef, 0);
+  mpz_init_set_ui(tmp, 0);
+
+  for (size_t c = 0; c < coefficients.size(); ++c) {
+    coefficients[c].to_mpz(mpz_coef);
+
+    mpz_set(tmp, mpz_result);
+
+    // result = result + coefficients[c] + mul(result, x);
+    mpz_mul(mpz_result, mpz_result, mpz_x);
+    mpz_add(mpz_result, mpz_result, mpz_coef);
+    mpz_add(mpz_result, mpz_result, tmp);
+  }
+  // mpz_clear(mpz_coef);
+  // mpz_clear(tmp);
+
+  mpz_mod(mpz_result, mpz_result, mpz_order);
+
+  return bigint<BIS>(mpz_result);
+}
+
 // Functions to be exported.
+
+alt_bn128_G1 _G1;
+alt_bn128_G2 _G2;
+bigint<BIS> _Order;
+mpz_t _mpz_order;
 
 void Init() {
   alt_bn128_pp::init_public_params();
   inhibit_profiling_info = true;
+  _G1 = alt_bn128_G1::one();
+  _G2 = alt_bn128_G2::one();
+  _Order = alt_bn128_G1::order();
+  mpz_init(_mpz_order);
+  _Order.to_mpz(_mpz_order);
 }
 
 AltBn128G1 G1() {
-  return toG1(alt_bn128_G1::one());
+  return toG1(_G1);
 }
 
 AltBn128G2 G2() {
-  return toG2(alt_bn128_G2::one());
+  return toG2(_G2);
 }
 
 BigInt Order() {
   // Both G1 and G2 have the same order in the case of alt_bn128.
-  return toBigInt(alt_bn128_G1::order());
+  return toBigInt(_Order);
 }
 
-BigInt RandomBigInt() {
-  libff::bigint<BIS> _n;
-  _n.randomize();
+BigInt ModOrder(BigInt n) {
+  mpz_t _n;
+  mpz_init_set_ui(_n, 0);
+  fromBigInt(n).to_mpz(_n);
+  mpz_mod(_n, _n, _mpz_order);
   return toBigInt(_n);
+}
+
+BigInt RandomCoefficient() {
+  mpz_t _coeff;
+  mpz_init_set_ui(_coeff, 0);
+  mpz_random(_coeff, 4);
+  mpz_mod(_coeff, _coeff, _mpz_order);
+  return toBigInt(_coeff);
+}
+
+AltBn128G1 RandomFq() {
+  return toG1(libff::scalar_mul(_G1, bigint<4>().randomize()));
+}
+
+AltBn128G2 RandomFq2() {
+  return toG2(libff::scalar_mul(_G2, bigint<4>().randomize()));
+}
+
+BigInt EvaluatePolynomial(std::vector<BigInt> coefficients, BigInt x) {
+  bigint<BIS> _x = fromBigInt(x);
+  int csize = coefficients.size();
+  std::vector<bigint<BIS>> _coefficients = std::vector<bigint<BIS>>(csize);
+  for (int c = 0; c < csize; c++) {
+    _coefficients[c] = fromBigInt(coefficients[c]);
+  }
+  return toBigInt(EvaluatePolynomial(_coefficients, _x));
 }
 
 void _test() {

@@ -39,7 +39,11 @@ extern "C" {
   EXPORT AltBn128G1 G1();
   EXPORT AltBn128G2 G2();
   EXPORT BigInt Order();
-  EXPORT BigInt RandomBigInt();
+  EXPORT AltBn128G1 RandomFq();
+  EXPORT AltBn128G2 RandomFq2();
+  EXPORT BigInt RandomCoefficient();
+  EXPORT BigInt ModOrder(BigInt n);
+  // EXPORT BigInt EvaluatePolynomial(std::vector<BigInt> coefficients, BigInt x);
 
 #ifdef __cplusplus
 }
