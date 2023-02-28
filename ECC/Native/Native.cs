@@ -11,16 +11,27 @@ namespace Aurem.ECC.Native
         public static extern AltBn128G1 G1();
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
-        public static extern AltBn128G1 G2();
+        public static extern AltBn128G2 G2();
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
         public static extern BigInt Order();
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
-        public static extern BigInt RandomFq();
+        public static extern AltBn128G1 ScalarMulG1([MarshalAs(UnmanagedType.Struct)]BigInt n);
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
-        public static extern BigInt RandomFq2();
+        public static extern AltBn128G2 ScalarMulG2([MarshalAs(UnmanagedType.Struct)]BigInt n);
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern AltBn128G1 ScalarPointMulG1([MarshalAs(UnmanagedType.Struct)]AltBn128G1 point, [MarshalAs(UnmanagedType.Struct)]BigInt n);
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern AltBn128G2 ScalarPointMulG2([MarshalAs(UnmanagedType.Struct)]AltBn128G2 point, [MarshalAs(UnmanagedType.Struct)]BigInt n);
+        [DllImport("AuremCore")]
+        public static extern bool PairsEqual([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p1G1,
+                                             [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1G2,
+                                             [MarshalAs(UnmanagedType.Struct)]AltBn128G1 p2G1,
+                                             [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p2G2);
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
         public static extern BigInt RandomCoefficient();
@@ -39,6 +50,14 @@ namespace Aurem.ECC.Native
         public delegate AltBn128G1 G1Delegate();
         public delegate AltBn128G2 G2Delegate();
         public delegate BigInt OrderDelegate();
+        public delegate AltBn128G1 ScalarMulG1Delegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
+        public delegate AltBn128G2 ScalarMulG2Delegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
+        public delegate AltBn128G1 ScalarPointMulG1Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G1 point, [MarshalAs(UnmanagedType.Struct)]BigInt n);
+        public delegate AltBn128G2 ScalarPointMulG2Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G2 point, [MarshalAs(UnmanagedType.Struct)]BigInt n);
+        public delegate bool PairsEqualDelegate([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p1G1,
+                                                [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1G2,
+                                                [MarshalAs(UnmanagedType.Struct)]AltBn128G1 p2G1,
+                                                [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p2G2);
         public delegate BigInt RandomCoefficientDelegate();
         public delegate BigInt ModOrderDelegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
 
@@ -46,6 +65,11 @@ namespace Aurem.ECC.Native
         public G1Delegate G1;
         public G2Delegate G2;
         public OrderDelegate Order;
+        public ScalarMulG1Delegate ScalarMulG1;
+        public ScalarMulG2Delegate ScalarMulG2;
+        public ScalarPointMulG1Delegate ScalarPointMulG1;
+        public ScalarPointMulG2Delegate ScalarPointMulG2;
+        public PairsEqualDelegate PairsEqual;
         public RandomCoefficientDelegate RandomCoefficient;
         public ModOrderDelegate ModOrder;
 
@@ -91,6 +115,32 @@ namespace Aurem.ECC.Native
                 Instance.Order = Marshal.GetDelegateForFunctionPointer<OrderDelegate>(_OrderHandle);
             else
                 Instance.Order = () => { throw notFound("Order"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "ScalarMulG1", out IntPtr _ScalarMulG1Handle))
+                Instance.ScalarMulG1 = Marshal.GetDelegateForFunctionPointer<ScalarMulG1Delegate>(_ScalarMulG1Handle);
+            else
+                Instance.ScalarMulG1 = (BigInt n) => { throw notFound("ScalarMulG1"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "ScalarMulG2", out IntPtr _ScalarMulG2Handle))
+                Instance.ScalarMulG2 = Marshal.GetDelegateForFunctionPointer<ScalarMulG2Delegate>(_ScalarMulG2Handle);
+            else
+                Instance.ScalarMulG2 = (BigInt n) => { throw notFound("ScalarMulG2"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "ScalarPointMulG1", out IntPtr _ScalarPointMulG1Handle))
+                Instance.ScalarPointMulG1 = Marshal.GetDelegateForFunctionPointer<ScalarPointMulG1Delegate>(_ScalarPointMulG1Handle);
+            else
+                Instance.ScalarPointMulG1 = (AltBn128G1 point, BigInt n) => { throw notFound("ScalarPointMulG1"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "ScalarPointMulG2", out IntPtr _ScalarPointMulG2Handle))
+                Instance.ScalarPointMulG2 = Marshal.GetDelegateForFunctionPointer<ScalarPointMulG2Delegate>(_ScalarPointMulG2Handle);
+            else
+                Instance.ScalarPointMulG2 = (AltBn128G2 point, BigInt n) => { throw notFound("ScalarPointMulG2"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "PairsEqual", out IntPtr _PairsEqualHandle))
+                Instance.PairsEqual = Marshal.GetDelegateForFunctionPointer<PairsEqualDelegate>(_PairsEqualHandle);
+            else
+                Instance.PairsEqual = (AltBn128G1 p1G1, AltBn128G2 p1G2,
+                                       AltBn128G1 p2G1, AltBn128G2 p2G2) => { throw notFound("PairsEqual"); };
 
             if (NativeLibrary.TryGetExport(_handle, "RandomCoefficient", out IntPtr _RandomCoefficientHandle))
                 Instance.RandomCoefficient = Marshal.GetDelegateForFunctionPointer<RandomCoefficientDelegate>(_RandomCoefficientHandle);
