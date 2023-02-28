@@ -58,6 +58,7 @@ namespace Aurem.Randomness
         /// </summary>
         public (VerificationKey vkey, List<SecretKey> skeys) GenerateKeys()
         {
+            AltBn128G2 G2 = Native.Instance.G2();
             // Generating a set of coefficients.
             List<BigInt> ZRs = new();
             for (int c = 0; c < threshold; c++) {
@@ -71,41 +72,26 @@ namespace Aurem.Randomness
                 // sks[c-1] = Native.Instance.EvaluatePolynomial(ZRs, new BigInt(c));
                 sks.Add(EvaluatePolynomial(ZRs, new BigInt(c)));
 
-            // for (int c = 0; c < sks.Count; c++)
-            //     sks[c].Print();
+            // Generating verification keys.
+            AltBn128G2 vk = Native.Instance.ScalarMulG2(secret);
+            List<AltBn128G2> vks = new();
 
-            // SecureRandom secureRandom = new SecureRandom();
-            // // Generating a set of coefficients.
-            // List<BigInteger> ZRs = new();
-            // for (int c = 0; c < threshold; c++) {
-            //     BigInteger r = new BigInteger(512, secureRandom);
-            //     ZRs.Add(r.Mod(curve.q));
+            foreach (BigInt sk in sks)
+                vks.Add(Native.Instance.ScalarMulG2(sk));
+
+            // Secret message.
+            BigInt msg = new BigInt(123123123);
+            AltBn128G1 msgHash = Native.Instance.ScalarMulG1(msg);
+
+            // Generating shares of the message.
+            List<AltBn128G1> shares = new();
+            foreach(BigInt sk in sks)
+                shares.Add(Native.Instance.ScalarPointMulG1(msgHash, sk));
+
+            // Validating shares.
+            // for (int c = 0; c < nParties; c++) {
+            //     Console.WriteLine(Native.Instance.PairsEqual(msgHash, vks[c], shares[c], G2));
             // }
-            // BigInteger secret = ZRs[ZRs.Count-1];
-
-            // // Generating secret keys.
-            // List<BigInteger> sks = new();
-            // for (int c = 1; c < nParties + 1; c++)
-            //     sks.Add(EvaluatePolynomial(ZRs, BigInteger.ValueOf(c)));
-
-            // // Generating verification keys.
-            // var vk = curve.G.Multiply(secret);
-            // List<ECPoint> vks = new();
-
-            // // Normalizing to have affine coordinates.
-            // // Console.WriteLine(vk.Normalize().AffineXCoord.ToBigInteger());
-            // // Console.WriteLine(vk.Normalize().AffineYCoord.ToBigInteger());
-            // // Console.WriteLine(vk.XCoord.ToString());
-            // // Console.WriteLine(vk.YCoord.ToString());
-            // // Console.WriteLine(vk.GetZCoord(0).ToString());
-            // byte[] bs = new byte[65];
-            // // vk.EncodeTo(false, bs, 0);
-            // bs = vk.GetEncoded();
-            // // vk.
-            // Console.WriteLine(bs.ToString());
-
-            // foreach (BigInteger sk in sks)
-            //     vks.Add(curve.G.Multiply(sk));
 
             // VerificationKey verificationKey = new(threshold, vk, vks);
             // List<SecretKey> secretKeys = new();
