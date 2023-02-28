@@ -39,11 +39,13 @@ extern "C" {
   EXPORT AltBn128G1 G1();
   EXPORT AltBn128G2 G2();
   EXPORT BigInt Order();
-  EXPORT AltBn128G1 RandomFq();
-  EXPORT AltBn128G2 RandomFq2();
+  EXPORT AltBn128G1 ScalarMulG1(BigInt n);
+  EXPORT AltBn128G2 ScalarMulG2(BigInt n);
+  EXPORT AltBn128G1 ScalarPointMulG1(AltBn128G1 point, BigInt n);
+  EXPORT AltBn128G2 ScalarPointMulG2(AltBn128G2 point, BigInt n);
+  EXPORT bool PairsEqual(AltBn128G1 p1G1, AltBn128G2 p1G2, AltBn128G1 p2G1, AltBn128G2 p2G2);
   EXPORT BigInt RandomCoefficient();
   EXPORT BigInt ModOrder(BigInt n);
-  // EXPORT BigInt EvaluatePolynomial(std::vector<BigInt> coefficients, BigInt x);
 
 #ifdef __cplusplus
 }

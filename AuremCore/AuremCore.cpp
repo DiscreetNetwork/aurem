@@ -88,13 +88,27 @@ AltBn128G2 toG2(alt_bn128_G2 p) {
   return _p;
 }
 
+alt_bn128_G1 fromG1(AltBn128G1 p) {
+  alt_bn128_G1 _p;
+  _p.X.from_words(arrToWords(p.X));
+  _p.Y.from_words(arrToWords(p.Y));
+  _p.Z.from_words(arrToWords(p.Z));
+  return _p;
+}
+
+alt_bn128_G2 fromG2(AltBn128G2 p) {
+  alt_bn128_G2 _p;
+  _p.X.from_words(arrToWords(p.X));
+  _p.Y.from_words(arrToWords(p.Y));
+  _p.Z.from_words(arrToWords(p.Z));
+  return _p;
+}
+
 bigint<BIS> EvaluatePolynomial(std::vector<libff::bigint<BIS>> coefficients, libff::bigint<BIS> x) {
   bigint<BIS> result;
   mpz_t mpz_result;
   mpz_t mpz_x;
   mpz_t mpz_order;
-
-  std::cout << "1\n";
 
   // Initializing.
   mpz_init_set_ui(mpz_result, 0);
@@ -173,12 +187,20 @@ BigInt RandomCoefficient() {
   return toBigInt(_coeff);
 }
 
-AltBn128G1 RandomFq() {
-  return toG1(libff::scalar_mul(_G1, bigint<4>().randomize()));
+AltBn128G1 ScalarMulG1(BigInt n) {
+  return toG1(libff::scalar_mul(_G1, fromBigInt(n)));
 }
 
-AltBn128G2 RandomFq2() {
-  return toG2(libff::scalar_mul(_G2, bigint<4>().randomize()));
+AltBn128G2 ScalarMulG2(BigInt n) {
+  return toG2(libff::scalar_mul(_G2, fromBigInt(n)));
+}
+
+AltBn128G1 ScalarPointMulG1(AltBn128G1 point, BigInt n) {
+  return toG1(libff::scalar_mul(fromG1(point), fromBigInt(n)));
+}
+
+AltBn128G2 ScalarPointMulG2(AltBn128G2 point, BigInt n) {
+  return toG2(libff::scalar_mul(fromG2(point), fromBigInt(n)));
 }
 
 BigInt EvaluatePolynomial(std::vector<BigInt> coefficients, BigInt x) {
@@ -189,6 +211,13 @@ BigInt EvaluatePolynomial(std::vector<BigInt> coefficients, BigInt x) {
     _coefficients[c] = fromBigInt(coefficients[c]);
   }
   return toBigInt(EvaluatePolynomial(_coefficients, _x));
+}
+
+bool PairsEqual(AltBn128G1 p1G1, AltBn128G2 p1G2,
+                AltBn128G1 p2G1, AltBn128G2 p2G2) {
+  return
+    alt_bn128_reduced_pairing(fromG1(p1G1), fromG2(p1G2)) ==
+    alt_bn128_reduced_pairing(fromG1(p2G1), fromG2(p2G2));
 }
 
 void _test() {
@@ -233,6 +262,8 @@ void _test() {
   for (size_t c = 0; c < nParties; c++) {
     shares[c] = libff::scalar_mul(msg_hash, sks[c]);
   }
+
+  // alt_bn128_GT p = alt_bn128_reduced_pairing(msg_hash, vks[0]);
 
   for (size_t c = 0; c < nParties; c++) {
     bool isEqual =
