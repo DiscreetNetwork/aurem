@@ -61,6 +61,7 @@ namespace Aurem.ECC.Native
         public delegate BigInt RandomCoefficientDelegate();
         public delegate BigInt ModOrderDelegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
 
+        #pragma warning disable CS8618
         public InitDelegate Init;
         public G1Delegate G1;
         public G2Delegate G2;
@@ -72,6 +73,7 @@ namespace Aurem.ECC.Native
         public PairsEqualDelegate PairsEqual;
         public RandomCoefficientDelegate RandomCoefficient;
         public ModOrderDelegate ModOrder;
+        #pragma warning restore CS8618
 
         private static EntryPointNotFoundException notFound(string name)
         {
