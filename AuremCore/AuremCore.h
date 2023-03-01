@@ -50,6 +50,8 @@ extern "C" {
   EXPORT bool PairsEqual(AltBn128G1 p1G1, AltBn128G2 p1G2, AltBn128G1 p2G1, AltBn128G2 p2G2);
   EXPORT BigInt RandomCoefficient();
   EXPORT BigInt ModOrder(BigInt n);
+  EXPORT AltBn128G1 AddG1(AltBn128G1 p1, AltBn128G1 p2);
+  EXPORT AltBn128G2 AddG2(AltBn128G2 p1, AltBn128G2 p2);
 
 #ifdef __cplusplus
 }

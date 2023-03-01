@@ -132,6 +132,14 @@ alt_bn128_G2 fromG2(AltBn128G2 p) {
   return _p;
 }
 
+AltBn128G1 AddG1(AltBn128G1 p1, AltBn128G1 p2) {
+  return toG1(fromG1(p1).add(fromG1(p2)));
+}
+
+AltBn128G2 AddG2(AltBn128G2 p1, AltBn128G2 p2) {
+  return toG2(fromG2(p1).add(fromG2(p2)));
+}
+
 bigint<BIS> EvaluatePolynomial(std::vector<libff::bigint<BIS>> coefficients, libff::bigint<BIS> x) {
   bigint<BIS> result;
   mpz_t mpz_result;
