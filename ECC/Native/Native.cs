@@ -38,6 +38,12 @@ namespace Aurem.ECC.Native
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
         public static extern BigInt EvaluatePolynomial([MarshalAs(UnmanagedType.Struct)]BigInt n);
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern AltBn128G1 AddG1([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p1, [MarshalAs(UnmanagedType.Struct)]AltBn128G1 p2);
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern AltBn128G2 AddG2([MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1, [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p2);
     }
 
     public class Native : IDisposable
@@ -60,6 +66,8 @@ namespace Aurem.ECC.Native
                                                 [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p2G2);
         public delegate BigInt RandomCoefficientDelegate();
         public delegate BigInt ModOrderDelegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
+        public delegate AltBn128G1 AddG1Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p1, [MarshalAs(UnmanagedType.Struct)]AltBn128G1 p2);
+        public delegate AltBn128G2 AddG2Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1, [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p2);
 
         #pragma warning disable CS8618
         public InitDelegate Init;
@@ -73,6 +81,8 @@ namespace Aurem.ECC.Native
         public PairsEqualDelegate PairsEqual;
         public RandomCoefficientDelegate RandomCoefficient;
         public ModOrderDelegate ModOrder;
+        public AddG1Delegate AddG1;
+        public AddG2Delegate AddG2;
         #pragma warning restore CS8618
 
         private static EntryPointNotFoundException notFound(string name)
@@ -153,6 +163,16 @@ namespace Aurem.ECC.Native
                 Instance.ModOrder = Marshal.GetDelegateForFunctionPointer<ModOrderDelegate>(_ModOrderHandle);
             else
                 Instance.ModOrder = (BigInt n) => { throw notFound("ModOrder"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "AddG1", out IntPtr _AddG1Handle))
+                Instance.AddG1 = Marshal.GetDelegateForFunctionPointer<AddG1Delegate>(_AddG1Handle);
+            else
+                Instance.AddG1 = (AltBn128G1 p1, AltBn128G1 p2) => { throw notFound("AddG1"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "AddG2", out IntPtr _AddG2Handle))
+                Instance.AddG2 = Marshal.GetDelegateForFunctionPointer<AddG2Delegate>(_AddG2Handle);
+            else
+                Instance.AddG2 = (AltBn128G2 p1, AltBn128G2 p2) => { throw notFound("AddG2"); };
         }
 
         private bool disposedValue;
