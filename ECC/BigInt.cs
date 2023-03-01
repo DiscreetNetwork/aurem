@@ -3,36 +3,42 @@ using System.Runtime.InteropServices;
 
 namespace Aurem.ECC
 {
+    public struct BigInt8
+    {
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
+        public ulong[] Words;
+    }
+
     /// <summary>
     ///
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct BigInt
     {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
         public ulong[] Words;
 
         public BigInt()
         {
-            Words = new ulong[8];
+            Words = new ulong[4];
         }
 
         public BigInt(ulong n)
         {
-            Words = new ulong[8];
+            Words = new ulong[4];
             Words[0] = n;
         }
 
         public BigInt(BigInteger n)
         {
             byte[] bytes = n.ToByteArray();
-            int length = Math.Min(bytes.Length, 32);
-            Words = new ulong[8];
+            int length = Math.Min(bytes.Length, 16);
+            Words = new ulong[4];
 
             for (int i = 0; i < length; i++) {
-                int ulongIndex = i / 8;
-                int byteIndex = i % 8;
-                Words[ulongIndex] |= ((ulong)bytes[i] << (byteIndex * 8));
+                int ulongIndex = i / 4;
+                int byteIndex = i % 4;
+                Words[ulongIndex] |= ((ulong)bytes[i] << (byteIndex * 4));
             }
         }
 
@@ -67,7 +73,7 @@ namespace Aurem.ECC
         public static BigInteger ToBigInteger(BigInt n)
         {
             BigInteger x = 0;
-            for (int i = 7; i >= 0; i--) {
+            for (int i = 3; i >= 0; i--) {
                 x <<= 64;
                 x |= n.Words[i];
                 x = Ensure256bits(x);
@@ -78,7 +84,7 @@ namespace Aurem.ECC
         public static BigInteger ToBigInteger(ulong[] words)
         {
             BigInteger x = 0;
-            for (int i = 7; i >= 0; i--) {
+            for (int i = 3; i >= 0; i--) {
                 x <<= 64;
                 x |= words[i];
                 x = Ensure256bits(x);

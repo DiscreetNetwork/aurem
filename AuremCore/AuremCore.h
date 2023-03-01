@@ -16,23 +16,27 @@ extern "C" {
 
   // BigInt Size.
   const mp_size_t BIS = 4;
-  // Words Size.
-  const int WS = 8;
 
   struct AltBn128G1 {
-    std::array<uint64_t, WS> X;
-    std::array<uint64_t, WS> Y;
-    std::array<uint64_t, WS> Z;
+    std::array<uint64_t, 4> X;
+    std::array<uint64_t, 4> Y;
+    std::array<uint64_t, 4> Z;
   };
 
   struct AltBn128G2 {
-    std::array<uint64_t, WS> X;
-    std::array<uint64_t, WS> Y;
-    std::array<uint64_t, WS> Z;
+    std::array<uint64_t, 8> X;
+    /* std::array<uint64_t, 4> Xc0; */
+    /* std::array<uint64_t, 4> Xc1; */
+    std::array<uint64_t, 8> Y;
+    /* std::array<uint64_t, 4> Yc0; */
+    /* std::array<uint64_t, 4> Yc1; */
+    std::array<uint64_t, 8> Z;
+    /* std::array<uint64_t, 4> Zc0; */
+    /* std::array<uint64_t, 4> Zc1; */
   };
 
   struct BigInt {
-    std::array<uint64_t, WS> N;
+    std::array<uint64_t, 4> N;
   };
 
   EXPORT void Init();
