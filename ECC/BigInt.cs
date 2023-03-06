@@ -18,6 +18,8 @@ namespace Aurem.ECC
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
         public ulong[] Words;
 
+        private static BigInteger Order = BigInteger.Parse("21888242871839275222246405745257275088548364400416034343698204186575808495617");
+
         public BigInt()
         {
             Words = new ulong[4];
@@ -31,31 +33,34 @@ namespace Aurem.ECC
 
         public BigInt(BigInteger n)
         {
-            byte[] bytes = n.ToByteArray();
-            int length = Math.Min(bytes.Length, 16);
             Words = new ulong[4];
-
-            for (int i = 0; i < length; i++) {
-                int ulongIndex = i / 4;
-                int byteIndex = i % 4;
-                Words[ulongIndex] |= ((ulong)bytes[i] << (byteIndex * 4));
+            for (int i = 0; i < 4; i++)
+            {
+                Words[i] = (ulong)(n & ulong.MaxValue);
+                n >>= 64;
             }
         }
 
-        public void Print()
+        public void Print(string msg)
         {
-            Console.WriteLine(ToBigInteger(this));
+            Console.WriteLine($"{msg} {ToBigInteger(this)}");
         }
 
         // TODO Implement addition operation handling the ulong values directly.
         public static BigInt Add(BigInt left, BigInt right)
         {
-            return new BigInt(BigInteger.Add(ToBigInteger(left), ToBigInteger(right)));
+            return new BigInt(BigInteger.Add(ToBigInteger(left), ToBigInteger(right)) % Order);
+
         }
 
         public static BigInt Multiply(BigInt left, BigInt right)
         {
-            return new BigInt(BigInteger.Multiply(ToBigInteger(left), ToBigInteger(right)));
+            return new BigInt(BigInteger.Multiply(ToBigInteger(left), ToBigInteger(right)) % Order);
+        }
+
+        public static BigInt Power(BigInt left, BigInt right)
+        {
+            return new BigInt(BigInteger.ModPow(ToBigInteger(left), ToBigInteger(right), Order));
         }
 
         public static BigInteger Ensure256bits(BigInteger n)
