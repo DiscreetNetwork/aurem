@@ -16,6 +16,12 @@ namespace Aurem.ECC.Native
         [return: MarshalAs(UnmanagedType.Struct)]
         public static extern BigInt Order();
         [DllImport("AuremCore")]
+        public static extern bool EqualG1([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p1,
+                                          [MarshalAs(UnmanagedType.Struct)]AltBn128G1 p2);
+        [DllImport("AuremCore")]
+        public static extern bool EqualG2([MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1,
+                                          [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p2);
+        [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
         public static extern AltBn128G1 ScalarMulG1([MarshalAs(UnmanagedType.Struct)]BigInt n);
         [DllImport("AuremCore")]
@@ -44,6 +50,9 @@ namespace Aurem.ECC.Native
         [DllImport("AuremCore")]
         [return: MarshalAs(UnmanagedType.Struct)]
         public static extern AltBn128G2 AddG2([MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1, [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p2);
+        [DllImport("AuremCore")]
+        [return: MarshalAs(UnmanagedType.Struct)]
+        public static extern void PrintAffineG1([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p);
     }
 
     public class Native : IDisposable
@@ -56,6 +65,10 @@ namespace Aurem.ECC.Native
         public delegate AltBn128G1 G1Delegate();
         public delegate AltBn128G2 G2Delegate();
         public delegate BigInt OrderDelegate();
+        public delegate bool EqualG1Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p1G1,
+                                     [MarshalAs(UnmanagedType.Struct)]AltBn128G1 p1G2);
+        public delegate bool EqualG2Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1G1,
+                                     [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1G2);
         public delegate AltBn128G1 ScalarMulG1Delegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
         public delegate AltBn128G2 ScalarMulG2Delegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
         public delegate AltBn128G1 ScalarPointMulG1Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G1 point, [MarshalAs(UnmanagedType.Struct)]BigInt n);
@@ -68,12 +81,15 @@ namespace Aurem.ECC.Native
         public delegate BigInt ModOrderDelegate([MarshalAs(UnmanagedType.Struct)]BigInt n);
         public delegate AltBn128G1 AddG1Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p1, [MarshalAs(UnmanagedType.Struct)]AltBn128G1 p2);
         public delegate AltBn128G2 AddG2Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G2 p1, [MarshalAs(UnmanagedType.Struct)]AltBn128G2 p2);
+        public delegate void PrintAffineG1Delegate([MarshalAs(UnmanagedType.Struct)]AltBn128G1 p);
 
         #pragma warning disable CS8618
         public InitDelegate Init;
         public G1Delegate G1;
         public G2Delegate G2;
         public OrderDelegate Order;
+        public EqualG1Delegate EqualG1;
+        public EqualG2Delegate EqualG2;
         public ScalarMulG1Delegate ScalarMulG1;
         public ScalarMulG2Delegate ScalarMulG2;
         public ScalarPointMulG1Delegate ScalarPointMulG1;
@@ -83,6 +99,7 @@ namespace Aurem.ECC.Native
         public ModOrderDelegate ModOrder;
         public AddG1Delegate AddG1;
         public AddG2Delegate AddG2;
+        public PrintAffineG1Delegate PrintAffineG1;
         #pragma warning restore CS8618
 
         private static EntryPointNotFoundException notFound(string name)
@@ -127,6 +144,16 @@ namespace Aurem.ECC.Native
                 Instance.Order = Marshal.GetDelegateForFunctionPointer<OrderDelegate>(_OrderHandle);
             else
                 Instance.Order = () => { throw notFound("Order"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "EqualG1", out IntPtr _EqualG1Handle))
+                Instance.EqualG1 = Marshal.GetDelegateForFunctionPointer<EqualG1Delegate>(_EqualG1Handle);
+            else
+                Instance.EqualG1 = (AltBn128G1 p1, AltBn128G1 p2) => { throw notFound("EqualG1"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "EqualG2", out IntPtr _EqualG2Handle))
+                Instance.EqualG2 = Marshal.GetDelegateForFunctionPointer<EqualG2Delegate>(_EqualG2Handle);
+            else
+                Instance.EqualG2 = (AltBn128G2 p1, AltBn128G2 p2) => { throw notFound("EqualG2"); };
 
             if (NativeLibrary.TryGetExport(_handle, "ScalarMulG1", out IntPtr _ScalarMulG1Handle))
                 Instance.ScalarMulG1 = Marshal.GetDelegateForFunctionPointer<ScalarMulG1Delegate>(_ScalarMulG1Handle);
@@ -173,6 +200,11 @@ namespace Aurem.ECC.Native
                 Instance.AddG2 = Marshal.GetDelegateForFunctionPointer<AddG2Delegate>(_AddG2Handle);
             else
                 Instance.AddG2 = (AltBn128G2 p1, AltBn128G2 p2) => { throw notFound("AddG2"); };
+
+            if (NativeLibrary.TryGetExport(_handle, "PrintAffineG1", out IntPtr _PrintAffineG1Handle))
+                Instance.PrintAffineG1 = Marshal.GetDelegateForFunctionPointer<PrintAffineG1Delegate>(_PrintAffineG1Handle);
+            else
+                Instance.PrintAffineG1 = (AltBn128G1 p) => { throw notFound("PrintAffineG1"); };
         }
 
         private bool disposedValue;

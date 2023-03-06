@@ -25,14 +25,8 @@ extern "C" {
 
   struct AltBn128G2 {
     std::array<uint64_t, 8> X;
-    /* std::array<uint64_t, 4> Xc0; */
-    /* std::array<uint64_t, 4> Xc1; */
     std::array<uint64_t, 8> Y;
-    /* std::array<uint64_t, 4> Yc0; */
-    /* std::array<uint64_t, 4> Yc1; */
     std::array<uint64_t, 8> Z;
-    /* std::array<uint64_t, 4> Zc0; */
-    /* std::array<uint64_t, 4> Zc1; */
   };
 
   struct BigInt {
@@ -43,6 +37,8 @@ extern "C" {
   EXPORT AltBn128G1 G1();
   EXPORT AltBn128G2 G2();
   EXPORT BigInt Order();
+  EXPORT bool EqualG1(AltBn128G1 p1, AltBn128G1 p2);
+  EXPORT bool EqualG2(AltBn128G2 p1, AltBn128G2 p2);
   EXPORT AltBn128G1 ScalarMulG1(BigInt n);
   EXPORT AltBn128G2 ScalarMulG2(BigInt n);
   EXPORT AltBn128G1 ScalarPointMulG1(AltBn128G1 point, BigInt n);
@@ -52,6 +48,7 @@ extern "C" {
   EXPORT BigInt ModOrder(BigInt n);
   EXPORT AltBn128G1 AddG1(AltBn128G1 p1, AltBn128G1 p2);
   EXPORT AltBn128G2 AddG2(AltBn128G2 p1, AltBn128G2 p2);
+  EXPORT void PrintAffineG1(AltBn128G1 p);
 
 #ifdef __cplusplus
 }

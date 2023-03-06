@@ -99,14 +99,8 @@ AltBn128G1 toG1(alt_bn128_G1 p) {
 AltBn128G2 toG2(alt_bn128_G2 p) {
   AltBn128G2 _p;
   _p.X = wordsToArr8(p.X.to_words());
-  // _p.Xc0 = wordsToArr4(p.X.c0.to_words());
-  // _p.Xc1 = wordsToArr4(p.X.c1.to_words());
   _p.Y = wordsToArr8(p.Y.to_words());
-  // _p.Yc0 = wordsToArr4(p.Y.c0.to_words());
-  // _p.Yc1 = wordsToArr4(p.Y.c1.to_words());
   _p.Z = wordsToArr8(p.Z.to_words());
-  // _p.Zc0 = wordsToArr4(p.Z.c0.to_words());
-  // _p.Zc1 = wordsToArr4(p.Z.c1.to_words());
   return _p;
 }
 
@@ -121,19 +115,19 @@ alt_bn128_G1 fromG1(AltBn128G1 p) {
 alt_bn128_G2 fromG2(AltBn128G2 p) {
   alt_bn128_G2 _p;
   _p.X.from_words(arrToWords8(p.X));
-  // _p.X.c0.from_words(arrToWords4(p.Xc0));
-  // _p.X.c1.from_words(arrToWords4(p.Xc1));
   _p.Y.from_words(arrToWords8(p.Y));
-  // _p.Y.c0.from_words(arrToWords4(p.Yc0));
-  // _p.Y.c1.from_words(arrToWords4(p.Yc1));
   _p.Z.from_words(arrToWords8(p.Z));
-  // _p.Z.c0.from_words(arrToWords4(p.Zc0));
-  // _p.Z.c1.from_words(arrToWords4(p.Zc1));
   return _p;
 }
 
 AltBn128G1 AddG1(AltBn128G1 p1, AltBn128G1 p2) {
   return toG1(fromG1(p1).add(fromG1(p2)));
+}
+
+void PrintAffineG1(AltBn128G1 p) {
+  alt_bn128_G1 _p = fromG1(p);
+  _p.to_affine_coordinates();
+  _p.print_coordinates();
 }
 
 AltBn128G2 AddG2(AltBn128G2 p1, AltBn128G2 p2) {
@@ -223,6 +217,14 @@ BigInt RandomCoefficient() {
   return toBigInt(_coeff);
 }
 
+bool EqualG1(AltBn128G1 p1, AltBn128G1 p2) {
+  return fromG1(p1) == fromG1(p2);
+}
+
+bool EqualG2(AltBn128G2 p1, AltBn128G2 p2) {
+  return fromG2(p1) == fromG2(p2);
+}
+
 AltBn128G1 ScalarMulG1(BigInt n) {
   return toG1(libff::scalar_mul(_G1, fromBigInt(n)));
 }
@@ -249,72 +251,8 @@ BigInt EvaluatePolynomial(std::vector<BigInt> coefficients, BigInt x) {
   return toBigInt(EvaluatePolynomial(_coefficients, _x));
 }
 
-void _test() {
-  Init();
-  size_t nParties = 10;
-  size_t threshold = 7;
-  alt_bn128_G1 G1 = alt_bn128_G1::one();
-  alt_bn128_G2 G2 = alt_bn128_G2::one();
-  libff::bigint<BIS> r = alt_bn128_G1::order();
-
-  // Generating coefficients.
-  std::vector<libff::bigint<BIS>> ZRs(threshold);
-  for (size_t c = 0; c < threshold; ++c) {
-    libff::bigint<BIS> coef;
-    coef.randomize();
-    ZRs[c] = coef;
-  }
-
-  libff::bigint<BIS> secret = ZRs[threshold-1];
-
-  // Generating secret keys.
-  std::vector<bigint<BIS>> sks(nParties);
-  for (size_t c = 1; c < nParties+1; c++) {
-    sks[c-1] = EvaluatePolynomial(ZRs, c);
-  }
-
-  // Generating verification keys.
-  alt_bn128_G2 vk = libff::scalar_mul(G2, secret);
-  std::vector<alt_bn128_G2> vks(nParties);
-  for (size_t c = 0; c < nParties; c++) {
-    vks[c] = libff::scalar_mul(G2, sks[c]);
-  }
-
-  // Message.
-  // TODO From alphanumeric string to G1.
-  bigint<BIS> msg = bigint<BIS>();
-  msg.randomize();
-  alt_bn128_G1 msg_hash = libff::scalar_mul(G1, msg);
-
-  // Generating shares of the message.
-  std::vector<alt_bn128_G1> shares(nParties);
-  for (size_t c = 0; c < nParties; c++) {
-    shares[c] = libff::scalar_mul(msg_hash, sks[c]);
-  }
-
-  for (size_t c = 0; c < nParties; c++) {
-    // bool isEqual =
-    //   alt_bn128_reduced_pairing(msg_hash, vks[c]) ==
-    //   alt_bn128_reduced_pairing(shares[c], G2);
-    // std::cout << isEqual;
-    // bool isEqual =
-    //   alt_bn128_reduced_pairing(fromG1(toG1(msg_hash)), fromG2(toG2(vks[c]))) ==
-    //   alt_bn128_reduced_pairing(fromG1(toG1(shares[c])), fromG2(toG2(G2)));
-    // std::cout << isEqual;
-    // bool isEqual =
-    //   alt_bn128_reduced_pairing(fromG1(toG1(msg_hash)), vks[c]) ==
-    //   alt_bn128_reduced_pairing(fromG1(toG1(shares[c])), G2);
-    // std::cout << isEqual;
-    // bool isEqual =
-    //   alt_bn128_reduced_pairing(fromG1(toG1(msg_hash)), vks[c]) ==
-    //   alt_bn128_reduced_pairing(shares[c], G2);
-    // std::cout << isEqual;
-  }
-}
-
 bool PairsEqual(AltBn128G1 p1G1, AltBn128G2 p1G2,
                 AltBn128G1 p2G1, AltBn128G2 p2G2) {
-  _test();
   return
     alt_bn128_reduced_pairing(fromG1(p1G1), fromG2(p1G2)) ==
     alt_bn128_reduced_pairing(fromG1(p2G1), fromG2(p2G2));
