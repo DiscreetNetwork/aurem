@@ -51,7 +51,7 @@ namespace Aurem.Networking
         {
             foreach (Ulid reporterId in _byzantine.Keys) {
                 foreach (KeyValuePair<Ulid, Ulid> byzantine in _byzantine[reporterId]) {
-                    string msg = $"Node {reporterId} detected unit {byzantine.Value} received from node {byzantine.Key}";
+                    string msg = $"Node {reporterId} detected Byzantine unit {byzantine.Value} received from node {byzantine.Key}";
                     Console.WriteLine(msg);
                 }
             }
@@ -77,8 +77,20 @@ namespace Aurem.Networking
 
         public int NodesCount => _nodes.Count;
 
+        /// <summary>
+        /// MinimumParents calculates the minimum of parents needed for a unit,
+        /// using the provided value.
+        /// </summary>
+        public int MinimumParents(int numNodes) {
+            return (int)double.Round(numNodes - (numNodes - 1) / 3.0);
+        }
+
+        /// <summary>
+        /// MinimumParents calculates the minimum of parents needed for a unit,
+        /// using the current node count in the network.
+        /// </summary>
         public int MinimumParents() {
-            return (int)double.Round(NodesCount - (NodesCount - 1) / 3.0);
+            return MinimumParents(NodesCount);
         }
     }
 }

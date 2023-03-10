@@ -15,4 +15,15 @@ namespace Aurem.Shared
             }
         }
     }
+
+    class Dbg
+    {
+        /// <summary>
+        /// A prints the value provided, along with a message.
+        /// </summary>
+        public static void A(string msg, Object value)
+        {
+            Console.WriteLine("{msg}: {value}");
+        }
+    }
 }

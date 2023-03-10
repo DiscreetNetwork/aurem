@@ -27,7 +27,7 @@ elif [ "$1" == "clean" ]; then
     if [ -d "$graphs_dir" ] && [ -z "$(ls -A $graphs_dir    )" ]; then
         echo "No graph files to be deleted."
     else
-        rm -rf $graphs_dir
+        rm $graphs_dir/*
         echo "Done."
     fi
 fi
