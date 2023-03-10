@@ -1,5 +1,6 @@
 using NUlid;
 using Aurem.chDAGs;
+using Aurem.Randomness;
 using Aurem.Units;
 using Aurem.Networking;
 
@@ -18,14 +19,16 @@ namespace Aurem.Nodes
         public Ulid Id;
         // Each node has its on local copy of the chDAG in the network.
         public chDAG _chDAG { get; }
+        private SecretKey _sk;
 
-        public Node(Ulid id, Network network)
+        public Node(Ulid id, Network network, SecretKey sk)
         {
             Id = id;
             // We first register the node to the network, and then we create a
             // chDAG associated to this network.
             network.Add(this);
             _chDAG = new(network, this);
+            _sk = sk;
         }
 
         /// <summary>

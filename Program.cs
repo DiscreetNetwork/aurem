@@ -1,8 +1,9 @@
 ﻿using NUlid;
 using Aurem.Nodes;
-using Aurem.chDAGs;
 using Aurem.Networking;
 using Aurem.Randomness;
+using Aurem.chDAGs;
+using Aurem.ECC;
 using Aurem.ECC.Native;
 using Microsoft.Extensions.Configuration;
 
@@ -23,9 +24,12 @@ namespace Aurem
 
         private List<Node> InitNodes(int numNodes, Network network)
         {
+            ThresholdSignature ts = new(network.MinimumParents(numNodes), numNodes);
+            (VerificationKey vk, List<SecretKey> sks) = ts.GenerateKeys();
+
             List<Node> nodes = new List<Node>();
             for (int c = 0; c < numNodes; c++) {
-                nodes.Add(new Node(Ulid.NewUlid(), network));
+                nodes.Add(new Node(Ulid.NewUlid(), network, sks[c]));
             }
             return nodes;
         }
@@ -60,6 +64,36 @@ namespace Aurem
             // Creating nodes to simulate the "minting" of units.
             Network network = new();
             List<Node> nodes = InitNodes(numNodes, network);
+
+            // // Secret message.
+            // ulong roundNumber = 123123;
+            // BigInt msg = new BigInt(roundNumber);
+
+            // int threshold = network.MinimumParents();
+
+            // ThresholdSignature ts = new(threshold, numNodes);
+            // (VerificationKey vk, List<SecretKey> sks) = ts.GenerateKeys();
+
+            // // Generating shares of the message.
+            // List<AltBn128G1> shares = new();
+
+            // foreach(SecretKey sk in sks)
+            //     shares.Add(sk.GenerateShare(msg));
+            //     // shares.Add(BigInt.Multiply(msgHash, sk));
+
+            // // Validating shares.
+            // for (int c = 0; c < numNodes; c++) {
+            //     bool isValid = vk.VerifyShare(shares[c], c, msg);
+            //     // bool isValid = Native.Instance.PairsEqual(Native.Instance.ScalarMulG1(msg), vk[c], Native.Instance.ScalarMulG1(shares[c]), G2);
+            //     Console.WriteLine($"Validating share {c}: {isValid}");
+            // }
+
+            // Dictionary<int, AltBn128G1> dshares = new();
+            // for (int i = 0; i < threshold; i++)
+            //     dshares[i] = shares[i];
+            // AltBn128G1 signature = vk.CombineShares(dshares);
+
+            // Console.WriteLine($"Validating combined shares (signature): {vk.VerifySignature(signature, msg)}");
 
             // Syncing units for every node in an infinite loop.
             // NOTE This will not be necessary later, as we should adopt a
@@ -97,7 +131,7 @@ namespace Aurem
                 foreach (Node node in nodes) {
                     threads.Add(new Thread(() => {
                         // Simulating latency.
-                        Thread.Sleep(random.Next(0, 1500));
+                        Thread.Sleep(random.Next(0, 10500));
                         // We don't care about what data we store for this PoC.
                         node.CreateUnit(new byte[1]{ (byte)random.Next(0, 255) });
                     }));
@@ -130,16 +164,16 @@ namespace Aurem
         {
             Native.Instance.Init();
 
-            ThresholdSignature ts = new(10, 15);
-            (VerificationKey vk, List<SecretKey> sks) = ts.GenerateKeys();
+            // ThresholdSignature ts = new(10, 15);
+            // (VerificationKey vk, List<SecretKey> sks) = ts.GenerateKeys();
 
             // Console.WriteLine(vk);
             // Console.WriteLine(sks);
 
-            // Console.WriteLine("Running Aurem");
-            // Program prgrm = new();
-            // prgrm.Run();
-            // Console.WriteLine("Done");
+            Console.WriteLine("Running Aurem");
+            Program prgrm = new();
+            prgrm.Run();
+            Console.WriteLine("Done");
         }
     }
 
