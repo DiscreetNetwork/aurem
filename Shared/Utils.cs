@@ -23,7 +23,15 @@ namespace Aurem.Shared
         /// </summary>
         public static void A(string msg, Object value)
         {
-            Console.WriteLine("{msg}: {value}");
+            Console.WriteLine($"{msg}: {value}");
+        }
+
+        /// <summary>
+        /// B prints the value provided.
+        /// </summary>
+        public static void B(Object value)
+        {
+            Console.WriteLine(value);
         }
     }
 }
