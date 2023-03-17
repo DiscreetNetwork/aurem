@@ -5,6 +5,7 @@ using Aurem.Randomness;
 using Aurem.chDAGs;
 using Aurem.ECC;
 using Aurem.ECC.Native;
+using Aurem.Shared;
 using Microsoft.Extensions.Configuration;
 
 /// <summary>
@@ -22,6 +23,11 @@ namespace Aurem
             return builder.Build();
         }
 
+        /// <summary>
+        /// InitNodes initiates the nodes that will be participating in the
+        /// network. It also acts as a trusted dealer that secretly sends a
+        /// secret key to each node, along with a public verification key.
+        /// </summary>
         private List<Node> InitNodes(int numNodes, Network network)
         {
             ThresholdSignature ts = new(network.MinimumParents(numNodes), numNodes);
@@ -29,7 +35,7 @@ namespace Aurem
 
             List<Node> nodes = new List<Node>();
             for (int c = 0; c < numNodes; c++) {
-                nodes.Add(new Node(Ulid.NewUlid(), network, sks[c]));
+                nodes.Add(new Node(Ulid.NewUlid(), network, sks[c], vk));
             }
             return nodes;
         }
@@ -49,6 +55,7 @@ namespace Aurem
 
         private void Run()
         {
+            /////////////////////////
             Random random = new Random();
 
             // Reading configuration values.
@@ -131,7 +138,8 @@ namespace Aurem
                 foreach (Node node in nodes) {
                     threads.Add(new Thread(() => {
                         // Simulating latency.
-                        Thread.Sleep(random.Next(0, 10500));
+                        if (node == nodes[0] || node == nodes[1] || node == nodes[2])
+                            Thread.Sleep(random.Next(7000, 8000));
                         // We don't care about what data we store for this PoC.
                         node.CreateUnit(new byte[1]{ (byte)random.Next(0, 255) });
                     }));
@@ -149,6 +157,11 @@ namespace Aurem
             // Wait for all the threads to finish execution.
             while(!threads.TrueForAll((thread) => !thread.IsAlive )) { }
             runSync = false;
+
+            // Performing linear ordering in each node.
+            // TODO This needs to be integrated in the chDAG when receiving units.
+            foreach(Node node in nodes)
+                node.GetChDAG().LinearOrdering();
 
             // Reporting any byzantine units found.
             network.ReportByzantine();
