@@ -1,4 +1,5 @@
 using NUlid;
+using Aurem.ECC;
 
 /// <summary>
 /// Aurem.Units contains code related to chDAG units, which are data structures
@@ -14,13 +15,15 @@ namespace Aurem.Units
         public byte[] Data { get; set; }
         public List<Unit>? Parents { get; set; }
         public int Round { get; set; }
+        public AltBn128G1 Share;
 
-        public Unit(Ulid creatorId, byte[] data)
+        public Unit(Ulid creatorId, byte[] data, AltBn128G1 share)
         {
-            this.CreatorId = creatorId;
-            this.Id = Ulid.NewUlid();
-            this.Data = data;
-            this.Round = 0;
+            CreatorId = creatorId;
+            Id = Ulid.NewUlid();
+            Data = data;
+            Round = 0;
+            Share = share;
         }
     }
 }

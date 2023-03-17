@@ -5,8 +5,11 @@ using DotNetGraph.Node;
 using DotNetGraph.Edge;
 using DotNetGraph.Extensions;
 using Aurem.Units;
+using Aurem.ECC;
+using Aurem.ECC.Native;
 using Aurem.Nodes;
 using Aurem.Networking;
+using Aurem.Shared;
 
 /// <summary>
 /// chDAG is a specific case of a DAG, where the storage of units is bound by
@@ -20,6 +23,8 @@ namespace Aurem.chDAGs
         private ConcurrentDictionary<int, List<Unit>> _units;
         private Node _owner;
         private Ulid _id;
+        private ConcurrentDictionary<int, Unit> _heads;
+        private List<Unit> _linord;
 
         public int Round { get; set; } = 0;
         /// <summary>
@@ -33,6 +38,8 @@ namespace Aurem.chDAGs
             _units = new();
             _owner = owner;
             _network = network;
+            _heads = new();
+            _linord = new();
         }
 
         /// <summary>
@@ -125,7 +132,9 @@ namespace Aurem.chDAGs
                 // Simulating malicious node.
                 Random random = new Random();
                 if (random.NextDouble() < 0.05) {
-                    Unit forgedUnit = new Unit(_owner.Id, new byte[1]{ (byte)random.Next(0, 255) });
+                    Unit forgedUnit = new Unit(_owner.Id,
+                                               new byte[1]{ (byte)random.Next(0, 255) },
+                                               Native.Instance.ScalarMulG1(new BigInt(Round)));
                     forgedUnit.Round = Round;
                     _units[Round++].Add(forgedUnit);
                 } else {
@@ -177,15 +186,19 @@ namespace Aurem.chDAGs
         /// ChooseHead determines a unit that is visible by all the nodes
         /// registered to a network.
         /// </summary>
-        public Unit ChooseHead()
+        public Unit ChooseHead(int round)
         {
+            // We need at least two rounds to cast a vote.
+            if (round > Round-2)
+                return new Unit(Ulid.Empty, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
             // The node's unit at Round-0 will never be visible by any other node,
             // as it has not been broadcasted yet.
             // The units at Round-1 needed parents from Round-2 in order to be
             // created (2f+1 units).
             // Thus, the head unit is retrieved from Round-2.
-            List<Unit> backers = GetRoundUnits(Round-1);
-            List<Unit> candidates = GetRoundUnits(Round-2);
+            List<Unit> backers = GetRoundUnits(round+1);
+            List<Unit> candidates = GetRoundUnits(round).ToList();
+            int minParents = _network.MinimumParents();
 
             if (backers == null || candidates == null)
                 throw new System.Exception("Units of rounds Round-1 and Round-2 should exist.");
@@ -206,12 +219,26 @@ namespace Aurem.chDAGs
                 // that is visible to all nodes.
                 // NOTE It is a bit unclear if it must be visible to all nodes
                 // or to 2f+1 nodes. We're taking the 2f+1 nodes route.
-                if (c == _network.MinimumParents())
-                if (candidate.Parents != null) {
+                if (c >= minParents && candidate.Parents != null)
                     return candidate;
-                }
             }
-            throw new System.Exception("Head unit could not be found.");
+
+            // Voting with CommonVote.
+            // TODO The backers in this case need to be from round+4.
+            if (backers.Count >= minParents) {
+                List<AltBn128G1> shares = new();
+                AltBn128G1 signature = new();
+                foreach (Unit backer in backers)
+                    shares.Add(backer.Share);
+                if (shares.Count > 0)
+                    signature = _owner.CombineShares(shares);
+                if (_owner.ValidateSignature(signature, round+1) &&
+                    _owner.SecretBit(signature))
+                    // TODO Implement round units permutation.
+                    return candidates[0];
+            }
+
+            return new Unit(Ulid.Empty, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
         }
 
         /// <summary>
@@ -221,9 +248,27 @@ namespace Aurem.chDAGs
         /// present in the local chDAG, due to the asynchronous nature of the
         /// protocol.
         /// </summary>
-        private void LinearOrdering()
+        public void LinearOrdering()
         {
-            Unit head = ChooseHead();
+            for (int c = 0; c < _units.Count; c++) {
+                Unit head = ChooseHead(c);
+                if (!head.CreatorId.Equals(Ulid.Empty)) {
+                    _heads[c] = head;
+                    if (head.Parents != null) {
+                        // NOTE We can not create a copy of the parents. We're
+                        // creating a copy for demonstrating the differences in
+                        // structures in the saved plots/graphs.
+                        List<Unit> parents = head.Parents.ToList();
+                        parents.Sort((x, y) => x.Id.CompareTo(y.Id));
+                        foreach (Unit unit in parents)
+                            _linord.Add(unit);
+                        _linord.Add(head);
+                    }
+                }
+            }
+            // Dbg.B(_owner.Id);
+            // foreach (Unit unit in _linord)
+            //     Dbg.B(unit.Id.ToString().Substring(unit.Id.ToString().Length - 3));
         }
 
         /// <summary>
@@ -282,23 +327,32 @@ namespace Aurem.chDAGs
         /// UnitToDotNode creates a node for a DotGraph representing the
         /// provided chDAG unit.
         /// </summary>
-        private DotNode UnitToDotNode(Unit unit)
+        private DotNode UnitToDotNode(Unit unit, bool isHead)
         {
             // TODO Display something more meaningful on the unit.
             string creatorId = unit.CreatorId.ToString();
             string unitId = $"{creatorId.Substring(creatorId.Length - 3)} {unit.Round} [ {unit.Data[0]} ]";
-            return new DotNode(unitId)
+
+            System.Drawing.Color color = System.Drawing.Color.White;
+            if (isHead)
+                color = System.Drawing.Color.Purple;
+
+            DotNode node = new DotNode(unitId)
             {
                 Shape = DotNodeShape.Ellipse,
                 Label = unitId,
-                Color = System.Drawing.Color.White,
-                FillColor = System.Drawing.Color.White,
-                FontColor = System.Drawing.Color.White,
+                Color = color,
+                FillColor = color,
+                FontColor = color,
                 Style = DotNodeStyle.Solid,
                 Width = 0.5f,
                 Height = 0.5f,
                 PenWidth = 1.5f
             };
+
+            node.SetCustomAttribute("rank", unit.Round.ToString());
+
+            return node;
         }
 
         /// <summary>
@@ -331,24 +385,24 @@ namespace Aurem.chDAGs
 
             // Adding units (nodes, in graph theory).
             for (int c = 0; c < Round; c++) {
-                // We want one of the units to have its edges in a different color,
-                // so it's more noticeable what's happening.
-                int diffColorNode = random.Next(0, _units[c].Count);
-
                 for (int i = 0; i < _units[c].Count; i++) {
+                    bool isHead = false;
+                    if (_heads.ContainsKey(c) && _units[c][i].Id.Equals(_heads[c].Id))
+                        isHead = true;
                     Unit unit = _units[c][i];
-                    DotNode node = UnitToDotNode(unit);
-                    System.Drawing.Color color = System.Drawing.Color.Violet;
-                    if (diffColorNode == i)
-                        color = System.Drawing.Color.Red;
+                    DotNode node = UnitToDotNode(unit, isHead);
                     nodes[unit.Id] = node;
                     graph.Elements.Add(node);
 
                     // Adding edges to parents.
                     if (unit.Parents != null)
                         foreach (Unit parent in unit.Parents) {
-                            if (nodes.ContainsKey(parent.Id))
+                            if (nodes.ContainsKey(parent.Id)) {
+                                System.Drawing.Color color = System.Drawing.Color.Violet;
+                                if (_heads.ContainsKey(c-1) && _heads[c-1].Id == parent.Id)
+                                    color = System.Drawing.Color.Red;
                                 graph.Elements.Add(UnitsEdge(nodes[parent.Id], node, color));
+                            }
                         }
                 }
             }
