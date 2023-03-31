@@ -4,7 +4,9 @@ using Aurem.Randomness;
 using Aurem.Units;
 using Aurem.Networking;
 using Aurem.ECC;
+using Aurem.Shared;
 using System.Security.Cryptography;
+using System.Text;
 
 /// <summary>
 /// Node represents a Unit creator; an entity responsible for creating valid
@@ -18,14 +20,15 @@ namespace Aurem.Nodes
     /// </summary>
     public class Node
     {
-        public Ulid Id;
+        public long Id;
         // Each node has its on local copy of the chDAG in the network.
         public chDAG _chDAG { get; }
         private SecretKey _sk;
         private VerificationKey _vk;
         private Network _network;
+        private Queue<Unit> _unitQueue;
 
-        public Node(Ulid id, Network network, SecretKey sk, VerificationKey vk)
+        public Node(long id, Network network, SecretKey sk, VerificationKey vk)
         {
             Id = id;
             // We first register the node to the network, and then we create a
@@ -35,6 +38,7 @@ namespace Aurem.Nodes
             _chDAG = new(network, this);
             _sk = sk;
             _vk = vk;
+            _unitQueue = new();
         }
 
         /// <summary>
@@ -51,6 +55,7 @@ namespace Aurem.Nodes
         /// </summary>
         public void CreateUnit(byte[] data)
         {
+            while (!_chDAG.IsListening) { }
             BigInt round = new BigInt(_chDAG.Round);
             _chDAG.Add(new Unit(Id, data, _sk.GenerateShare(round)));
         }
@@ -66,13 +71,13 @@ namespace Aurem.Nodes
         /// <summary>
         /// CombineShares combines a list of message shares to create a signature.
         /// </summary>
-        public AltBn128G1 CombineShares(List<AltBn128G1> shares)
+        public AltBn128G1 CombineShares(Dictionary<long, AltBn128G1> shares)
         {
-            Dictionary<int, AltBn128G1> dshares = new();
-            int threshold = _network.MinimumParents();
-            for (int i = 0; i < threshold; i++)
-                dshares[i] = shares[i];
-            return _vk.CombineShares(dshares);
+            // Dictionary<int, AltBn128G1> dshares = new();
+            // int threshold = _network.MinimumParents();
+            // for (int i = 0; i < threshold; i++)
+            //     dshares[i] = shares[i];
+            return _vk.CombineShares(shares);
         }
 
         /// <summary>
@@ -90,7 +95,9 @@ namespace Aurem.Nodes
             byte[] hash = sha256.ComputeHash(bytes);
 
             // Getting most significant bit of first byte.
-            return (hash[0] & 0x80) == 0x80;
+            // TODO For some reason, with byte 0 always throws False. Using byte
+            // 1 shouldn't affect at all, but still check why.
+            return (hash[1] & 0x80) == 0x80;
         }
     }
 }

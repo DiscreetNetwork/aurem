@@ -15,7 +15,7 @@ namespace Aurem.Networking
     public class Network
     {
         private List<Node> _nodes;
-        private ConcurrentDictionary<Ulid, Dictionary<Ulid, Ulid>> _byzantine;
+        private ConcurrentDictionary<long, Dictionary<long, Ulid>> _byzantine;
 
         public Network()
         {
@@ -36,10 +36,10 @@ namespace Aurem.Networking
         /// network, along with the owner of that unit and what node detected
         /// the anomaly.
         /// </summary>
-        public void AddByzantine(Ulid reporterId, Unit unit)
+        public void AddByzantine(long reporterId, Unit unit)
         {
             if (!_byzantine.ContainsKey(reporterId))
-                _byzantine[reporterId] = new Dictionary<Ulid, Ulid>();
+                _byzantine[reporterId] = new Dictionary<long, Ulid>();
             _byzantine[reporterId][unit.CreatorId] = unit.Id;
         }
 
@@ -49,8 +49,8 @@ namespace Aurem.Networking
         /// </summary>
         public void ReportByzantine()
         {
-            foreach (Ulid reporterId in _byzantine.Keys) {
-                foreach (KeyValuePair<Ulid, Ulid> byzantine in _byzantine[reporterId]) {
+            foreach (long reporterId in _byzantine.Keys) {
+                foreach (KeyValuePair<long, Ulid> byzantine in _byzantine[reporterId]) {
                     string msg = $"Node {reporterId} detected Byzantine unit {byzantine.Value} received from node {byzantine.Key}";
                     Console.WriteLine(msg);
                 }

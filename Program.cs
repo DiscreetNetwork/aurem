@@ -35,7 +35,7 @@ namespace Aurem
 
             List<Node> nodes = new List<Node>();
             for (int c = 0; c < numNodes; c++) {
-                nodes.Add(new Node(Ulid.NewUlid(), network, sks[c], vk));
+                nodes.Add(new Node((long) c, network, sks[c], vk));
             }
             return nodes;
         }
@@ -138,8 +138,9 @@ namespace Aurem
                 foreach (Node node in nodes) {
                     threads.Add(new Thread(() => {
                         // Simulating latency.
-                        if (node == nodes[0] || node == nodes[1] || node == nodes[2])
-                            Thread.Sleep(random.Next(7000, 8000));
+                        // if (node == nodes[0] || node == nodes[1] || node == nodes[2])
+                        //     Thread.Sleep(random.Next(0, 1000));
+                        // Task.Delay(random.Next(10000, 12000));
                         // We don't care about what data we store for this PoC.
                         node.CreateUnit(new byte[1]{ (byte)random.Next(0, 255) });
                     }));
