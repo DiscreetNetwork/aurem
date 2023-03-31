@@ -19,12 +19,13 @@ namespace Aurem.chDAGs
 {
     public class chDAG
     {
-        private static readonly object _lock = new object();
+        private readonly object _lock = new object();
         private ConcurrentDictionary<int, List<Unit>> _units;
         private Node _owner;
         private Ulid _id;
         private ConcurrentDictionary<int, Unit> _heads;
         private List<Unit> _linord;
+        public bool IsListening { get; private set; } = true;
 
         public int Round { get; set; } = 0;
         /// <summary>
@@ -88,7 +89,7 @@ namespace Aurem.chDAGs
         /// We poll the network to check if we have enough parents to create a
         /// new unit.
         /// </summary>
-        private bool IsMinimumParents()
+        public bool IsMinimumParents()
         {
             return _units[Round-1].Count >= _network.MinimumParents();
         }
@@ -100,46 +101,46 @@ namespace Aurem.chDAGs
         /// </summary>
         public void Add(Unit unit)
         {
-            // TODO Refactor this.
-            if (Round == 0) {
-                lock (_lock) {
+            lock (_lock) {
+                // We change to a "waiting" status.
+                IsListening = false;
+                // TODO Refactor this.
+                if (Round == 0) {
                     unit.Round = Round;
                     if (!_units.ContainsKey(Round)) {
                         _units[Round] = new List<Unit>();
                     }
                     _units[Round++].Add(unit);
+                    IsListening = true;
                     return;
                 }
-            }
-            // We need to check if this is a new instance of a DAG.
-            // If it's new, then a new unit cannot have parents.
-            // TODO Refactor this. This needs to go outside this method. Then we
-            // call chDAG.Add after isEnoughNodes is true.
-            if (Round != 0) {
-                bool isEnoughNodes = IsMinimumParents();
-                while (!isEnoughNodes) {
-                    lock (_lock) isEnoughNodes = IsMinimumParents();
-                }
-            }
 
-            lock (_lock) {
                 unit.Round = Round;
                 unit.Parents = GetParents();
                 if (!_units.ContainsKey(Round)) {
                     _units[Round] = new List<Unit>();
                 }
 
-                // Simulating malicious node.
-                Random random = new Random();
-                if (random.NextDouble() < 0.05) {
-                    Unit forgedUnit = new Unit(_owner.Id,
-                                               new byte[1]{ (byte)random.Next(0, 255) },
-                                               Native.Instance.ScalarMulG1(new BigInt(Round)));
-                    forgedUnit.Round = Round;
-                    _units[Round++].Add(forgedUnit);
-                } else {
-                    _units[Round++].Add(unit);
-                }
+                // // Simulating malicious node.
+                // Random random = new Random();
+                // if (random.NextDouble() < 0.05) {
+                //     Unit forgedUnit = new Unit(_owner.Id,
+                //                                new byte[1]{ (byte)random.Next(0, 255) },
+                //                                Native.Instance.ScalarMulG1(new BigInt(Round)));
+                //     forgedUnit.Round = Round;
+                //     _units[Round++].Add(forgedUnit);
+                // } else {
+                //     _units[Round++].Add(unit);
+                // }
+                _units[Round++].Add(unit);
+
+                // LinearOrdering();
+                // string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                // string graphsPath = Path.Combine(homePath, "_Graphs");
+                // Save(graphsPath);
+
+                // We are ready to receive more data.
+                IsListening = true;
             }
         }
 
@@ -190,7 +191,7 @@ namespace Aurem.chDAGs
         {
             // We need at least two rounds to cast a vote.
             if (round > Round-2)
-                return new Unit(Ulid.Empty, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
+                return new Unit(-1, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
             // The node's unit at Round-0 will never be visible by any other node,
             // as it has not been broadcasted yet.
             // The units at Round-1 needed parents from Round-2 in order to be
@@ -226,19 +227,20 @@ namespace Aurem.chDAGs
             // Voting with CommonVote.
             // TODO The backers in this case need to be from round+4.
             if (backers.Count >= minParents) {
-                List<AltBn128G1> shares = new();
+                Dictionary<long, AltBn128G1> shares = new();
                 AltBn128G1 signature = new();
                 foreach (Unit backer in backers)
-                    shares.Add(backer.Share);
+                    shares[backer.CreatorId] = backer.Share;
                 if (shares.Count > 0)
                     signature = _owner.CombineShares(shares);
-                if (_owner.ValidateSignature(signature, round+1) &&
-                    _owner.SecretBit(signature))
+
+                if (_owner.SecretBit(signature) &&
+                    _owner.ValidateSignature(signature, round+1))
                     // TODO Implement round units permutation.
                     return candidates[0];
             }
 
-            return new Unit(Ulid.Empty, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
+            return new Unit(-1, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
         }
 
         /// <summary>
@@ -266,9 +268,6 @@ namespace Aurem.chDAGs
                     }
                 }
             }
-            // Dbg.B(_owner.Id);
-            // foreach (Unit unit in _linord)
-            //     Dbg.B(unit.Id.ToString().Substring(unit.Id.ToString().Length - 3));
         }
 
         /// <summary>
@@ -330,8 +329,7 @@ namespace Aurem.chDAGs
         private DotNode UnitToDotNode(Unit unit, bool isHead)
         {
             // TODO Display something more meaningful on the unit.
-            string creatorId = unit.CreatorId.ToString();
-            string unitId = $"{creatorId.Substring(creatorId.Length - 3)} {unit.Round} [ {unit.Data[0]} ]";
+            string unitId = $"{unit.CreatorId} {unit.Round} [ {unit.Data[0]} ]";
 
             System.Drawing.Color color = System.Drawing.Color.White;
             if (isHead)

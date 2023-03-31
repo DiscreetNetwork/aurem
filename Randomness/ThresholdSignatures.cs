@@ -119,7 +119,7 @@ namespace Aurem.Randomness
 
         /// <summary>
         /// </summary>
-        private BigInt Lagrange(List<int> shareIdxs, int ownerIdx)
+        private BigInt Lagrange(List<long> shareIdxs, long ownerIdx)
         {
             BigInteger num = 1, den = 1;
             foreach (int idx in shareIdxs) {
@@ -137,10 +137,10 @@ namespace Aurem.Randomness
 
         /// <summary>
         /// </summary>
-        public AltBn128G1 CombineShares(Dictionary<int, AltBn128G1> shares)
+        public AltBn128G1 CombineShares(Dictionary<long, AltBn128G1> shares)
         // public BigInt CombineShares(Dictionary<int, BigInt> shares)
         {
-            List<int> idxs = shares.Keys.ToList();
+            List<long> idxs = shares.Keys.ToList();
             idxs.Sort();
             AltBn128G1 res = Native.Instance.ScalarPointMulG1(shares[idxs[0]], Lagrange(idxs, idxs[0]));
 

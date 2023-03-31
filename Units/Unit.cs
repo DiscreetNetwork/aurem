@@ -11,13 +11,13 @@ namespace Aurem.Units
     {
         // TODO We need to calculate a hash to use as ID.
         public Ulid Id { get; set;}
-        public Ulid CreatorId { get; set; }
+        public long CreatorId { get; set; }
         public byte[] Data { get; set; }
         public List<Unit>? Parents { get; set; }
         public int Round { get; set; }
         public AltBn128G1 Share;
 
-        public Unit(Ulid creatorId, byte[] data, AltBn128G1 share)
+        public Unit(long creatorId, byte[] data, AltBn128G1 share)
         {
             CreatorId = creatorId;
             Id = Ulid.NewUlid();
