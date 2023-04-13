@@ -20,12 +20,12 @@ namespace Aurem.chDAGs
     public class chDAG
     {
         private readonly object _lock = new object();
+        private readonly static object _ecc_lock = new object();
         private ConcurrentDictionary<int, List<Unit>> _units;
         private Node _owner;
         private Ulid _id;
         private ConcurrentDictionary<int, Unit> _heads;
         private List<Unit> _linord;
-        public bool IsListening { get; private set; } = true;
 
         public int Round { get; set; } = 0;
         /// <summary>
@@ -101,47 +101,37 @@ namespace Aurem.chDAGs
         /// </summary>
         public void Add(Unit unit)
         {
-            lock (_lock) {
-                // We change to a "waiting" status.
-                IsListening = false;
-                // TODO Refactor this.
-                if (Round == 0) {
-                    unit.Round = Round;
-                    if (!_units.ContainsKey(Round)) {
-                        _units[Round] = new List<Unit>();
-                    }
-                    _units[Round++].Add(unit);
-                    IsListening = true;
-                    return;
-                }
-
+            // TODO Refactor this.
+            if (Round == 0) {
                 unit.Round = Round;
-                unit.Parents = GetParents();
                 if (!_units.ContainsKey(Round)) {
                     _units[Round] = new List<Unit>();
                 }
-
-                // // Simulating malicious node.
-                // Random random = new Random();
-                // if (random.NextDouble() < 0.05) {
-                //     Unit forgedUnit = new Unit(_owner.Id,
-                //                                new byte[1]{ (byte)random.Next(0, 255) },
-                //                                Native.Instance.ScalarMulG1(new BigInt(Round)));
-                //     forgedUnit.Round = Round;
-                //     _units[Round++].Add(forgedUnit);
-                // } else {
-                //     _units[Round++].Add(unit);
-                // }
                 _units[Round++].Add(unit);
-
-                // LinearOrdering();
-                // string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                // string graphsPath = Path.Combine(homePath, "_Graphs");
-                // Save(graphsPath);
-
-                // We are ready to receive more data.
-                IsListening = true;
+                return;
             }
+
+            unit.Round = Round;
+            unit.Parents = GetParents();
+            if (!_units.ContainsKey(Round)) {
+                _units[Round] = new List<Unit>();
+            }
+
+            // // Simulating malicious node.
+            // Random random = new Random();
+            // if (random.NextDouble() < 0.05) {
+            //     Unit forgedUnit = new Unit(_owner.Id,
+            //                                new byte[1]{ (byte)random.Next(0, 255) },
+            //                                Native.Instance.ScalarMulG1(new BigInt(Round)));
+            //     forgedUnit.Round = Round;
+            //     _units[Round++].Add(forgedUnit);
+            // } else {
+            //     _units[Round++].Add(unit);
+            // }
+            _units[Round].Add(unit);
+
+            LinearOrdering();
+            Round++;
         }
 
         private int GetRoundUnitsCount(int round)
@@ -231,13 +221,15 @@ namespace Aurem.chDAGs
                 AltBn128G1 signature = new();
                 foreach (Unit backer in backers)
                     shares[backer.CreatorId] = backer.Share;
-                if (shares.Count > 0)
-                    signature = _owner.CombineShares(shares);
 
-                if (_owner.SecretBit(signature) &&
-                    _owner.ValidateSignature(signature, round+1))
-                    // TODO Implement round units permutation.
-                    return candidates[0];
+                if (shares.Count > 0)
+                    lock (_ecc_lock) signature = _owner.CombineShares(shares);
+
+                lock (_ecc_lock)
+                    if (_owner.SecretBit(signature) &&
+                        _owner.ValidateSignature(signature, round+1))
+                        // TODO Implement round units permutation.
+                        return candidates[0];
             }
 
             return new Unit(-1, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
@@ -254,7 +246,7 @@ namespace Aurem.chDAGs
         {
             for (int c = 0; c < _units.Count; c++) {
                 Unit head = ChooseHead(c);
-                if (!head.CreatorId.Equals(Ulid.Empty)) {
+                if (head.CreatorId != -1) {
                     _heads[c] = head;
                     if (head.Parents != null) {
                         // NOTE We can not create a copy of the parents. We're

@@ -1,5 +1,5 @@
 {
-  "numNodes": 5,
+  "numNodes": 10,
   "fixedRounds": 10,
   "graphsDirectory": "_Graphs",
   "stepByStepGraphs": false,
