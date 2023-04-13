@@ -27,6 +27,7 @@ namespace Aurem.Nodes
         private VerificationKey _vk;
         private Network _network;
         private Queue<Unit> _unitQueue;
+        private readonly object _lock = new object();
 
         public Node(long id, Network network, SecretKey sk, VerificationKey vk)
         {
@@ -55,9 +56,18 @@ namespace Aurem.Nodes
         /// </summary>
         public void CreateUnit(byte[] data)
         {
-            while (!_chDAG.IsListening) { }
-            BigInt round = new BigInt(_chDAG.Round);
-            _chDAG.Add(new Unit(Id, data, _sk.GenerateShare(round)));
+            lock (_lock) {
+                BigInt round = new BigInt(_chDAG.Round);
+                _chDAG.Add(new Unit(Id, data, _sk.GenerateShare(round)));
+            }
+        }
+
+        /// <summary>
+        /// ValidateShare validates a share belonging to a node.
+        /// </summary>
+        public bool ValidateShare(AltBn128G1 share, long vkIdx, int round)
+        {
+            return _vk.VerifyShare(share, vkIdx, new BigInt(round));
         }
 
         /// <summary>
@@ -89,15 +99,23 @@ namespace Aurem.Nodes
             byte[] bytes = new byte[signature.X.Words.Length * sizeof(ulong) * 3];
             Buffer.BlockCopy(signature.X.Words, 0, bytes, 0, bytes.Length / 3);
             Buffer.BlockCopy(signature.Y.Words, 0, bytes, bytes.Length / 3, bytes.Length / 3);
-            Buffer.BlockCopy(signature.Y.Words, 0, bytes, 2 * bytes.Length / 3, bytes.Length / 3);
+            Buffer.BlockCopy(signature.Z.Words, 0, bytes, 2 * bytes.Length / 3, bytes.Length / 3);
 
             SHA256 sha256 = SHA256.Create();
             byte[] hash = sha256.ComputeHash(bytes);
 
+            // TODO Check if this was actually necessary, or if hash[0] is enough.
+            byte sum = 0;
+            for (int i = 0; i < hash.Length; i++)
+            {
+                sum += hash[i];
+            }
+
             // Getting most significant bit of first byte.
             // TODO For some reason, with byte 0 always throws False. Using byte
             // 1 shouldn't affect at all, but still check why.
-            return (hash[1] & 0x80) == 0x80;
+            // return (hash[0] & 0x80) == 0x80;
+            return (sum & 0x80) == 0x80;
         }
     }
 }
