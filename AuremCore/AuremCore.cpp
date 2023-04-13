@@ -163,10 +163,16 @@ bigint<BIS> EvaluatePolynomial(std::vector<libff::bigint<BIS>> coefficients, lib
     mpz_add(mpz_result, mpz_result, mpz_coef);
     mpz_add(mpz_result, mpz_result, tmp);
   }
-  // mpz_clear(mpz_coef);
-  // mpz_clear(tmp);
 
   mpz_mod(mpz_result, mpz_result, mpz_order);
+
+  result = bigint<BIS>(mpz_result);
+
+  mpz_clear(mpz_coef);
+  mpz_clear(mpz_order);
+  mpz_clear(mpz_x);
+  mpz_clear(tmp);
+  mpz_clear(mpz_result);
 
   return bigint<BIS>(mpz_result);
 }
@@ -178,7 +184,13 @@ alt_bn128_G2 _G2;
 bigint<BIS> _Order;
 mpz_t _mpz_order;
 
+gmp_randstate_t state;
+
 void Init() {
+  std::random_device rd;
+  gmp_randinit_mt(state);
+  gmp_randseed_ui(state, rd());
+
   alt_bn128_pp::init_public_params();
   inhibit_profiling_info = true;
   _G1 = alt_bn128_G1::one();
@@ -212,7 +224,7 @@ BigInt ModOrder(BigInt n) {
 BigInt RandomCoefficient() {
   mpz_t _coeff;
   mpz_init_set_ui(_coeff, 0);
-  mpz_random(_coeff, 4);
+  mpz_urandomb(_coeff, state, 512);
   mpz_mod(_coeff, _coeff, _mpz_order);
   return toBigInt(_coeff);
 }
