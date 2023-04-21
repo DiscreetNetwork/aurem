@@ -30,6 +30,12 @@ namespace Aurem.Tests
         }
 
         [Fact]
+        public void TestScalarMul()
+        {
+            // new BigInt()
+        }
+
+        [Fact]
         public void TestBigInt()
         {
             BigInt n = new BigInt(123123123);
