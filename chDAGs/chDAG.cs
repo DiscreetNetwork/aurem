@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Numerics;
 using NUlid;
 using DotNetGraph;
 using DotNetGraph.Node;
@@ -179,9 +180,10 @@ namespace Aurem.chDAGs
         /// </summary>
         public Unit ChooseHead(int round)
         {
+            Unit nullUnit = new Unit(-1, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
             // We need at least two rounds to cast a vote.
             if (round > Round-2)
-                return new Unit(-1, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
+                return nullUnit;
             // The node's unit at Round-0 will never be visible by any other node,
             // as it has not been broadcasted yet.
             // The units at Round-1 needed parents from Round-2 in order to be
@@ -217,22 +219,20 @@ namespace Aurem.chDAGs
             // Voting with CommonVote.
             // TODO The backers in this case need to be from round+4.
             if (backers.Count >= minParents) {
-                Dictionary<long, AltBn128G1> shares = new();
                 AltBn128G1 signature = new();
-                foreach (Unit backer in backers)
-                    shares[backer.CreatorId] = backer.Share;
+                lock (_ecc_lock) signature = _owner.GetUnitsSignature(backers);
 
-                if (shares.Count > 0)
-                    lock (_ecc_lock) signature = _owner.CombineShares(shares);
+                if (!_owner.ValidateSignature(signature, round+1))
+                    return nullUnit;
+
+                int maxPriority = MaxPriority(backers, signature);
 
                 lock (_ecc_lock)
-                    if (_owner.SecretBit(signature) &&
-                        _owner.ValidateSignature(signature, round+1))
-                        // TODO Implement round units permutation.
-                        return candidates[0];
+                    if (_owner.SecretBit(signature))
+                        return candidates[maxPriority];
             }
 
-            return new Unit(-1, new byte[0], Native.Instance.ScalarMulG1(new BigInt(0)));
+            return nullUnit;
         }
 
         /// <summary>
@@ -260,6 +260,29 @@ namespace Aurem.chDAGs
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// MaxPriority orders the given units in a random order, which
+        /// is common among all the nodes, and returns the index of the unit
+        /// with highest priority.
+        /// </summary>
+        public int MaxPriority(List<Unit> units, AltBn128G1 signature)
+        {
+            BigInteger[] priorities = new BigInteger[units.Count];
+            for (int c = 0; c < priorities.Length; c++) {
+                priorities[c] = _owner.GetUnitPriority(units[c], signature);
+            }
+
+            // Calculating unit with highest priority.
+            int maxPriority = 0;
+            for (int c = 1; c < priorities.Length; c++) {
+                if (priorities[c] > priorities[maxPriority]) {
+                    maxPriority = c;
+                }
+            }
+
+            return maxPriority;
         }
 
         /// <summary>

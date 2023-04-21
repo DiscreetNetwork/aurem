@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.2]
 
+### Added
+ 
+- Implemented a way to generate a permutation of units in a round, which ensures
+  that the choosing of a head unit&mdash;which is used for creating a linear
+  ordering of the units in the consensus process&mdash;is non-deterministic.
+
 ## [0.0.1] - 2019-04-13
 
 ### Added

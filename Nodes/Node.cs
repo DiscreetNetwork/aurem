@@ -1,12 +1,11 @@
-using NUlid;
+using System.Security.Cryptography;
+using System.Numerics;
 using Aurem.chDAGs;
 using Aurem.Randomness;
 using Aurem.Units;
 using Aurem.Networking;
 using Aurem.ECC;
-using Aurem.Shared;
-using System.Security.Cryptography;
-using System.Text;
+using Aurem.ECC.Native;
 
 /// <summary>
 /// Node represents a Unit creator; an entity responsible for creating valid
@@ -91,31 +90,52 @@ namespace Aurem.Nodes
         }
 
         /// <summary>
+        /// GetUnitsSignature combines the shares of all the provided units into
+        /// a signature.
+        /// </summary>
+        public AltBn128G1 GetUnitsSignature(List<Unit> units)
+        {
+            Dictionary<long, AltBn128G1> shares = new();
+            foreach (Unit unit in units)
+                shares[unit.CreatorId] = unit.Share;
+
+            return CombineShares(shares);
+        }
+
+        /// <summary>
+        /// GetUnitPriority determines the priority of a unit in a random
+        /// permutation, given a signature.
+        /// </summary>
+        public BigInteger GetUnitPriority(Unit unit, AltBn128G1 signature)
+        {
+            AltBn128G1 priority = Native.Instance.ScalarPointMulG1(signature, new BigInt(unit.CreatorId));
+            // TODO It should be faster to keep them as byte arrays and do
+            // comparisons at byte levels.
+            return new BigInteger(HashG1(priority));
+        }
+
+        /// <summary>
+        /// HashG1 hashes an AltBn128G1 point using SHA-256.
+        /// </summary>
+        private byte[] HashG1(AltBn128G1 point)
+        {
+            byte[] bytes = new byte[point.X.Words.Length * sizeof(ulong) * 3];
+            Buffer.BlockCopy(point.X.Words, 0, bytes, 0, bytes.Length / 3);
+            Buffer.BlockCopy(point.Y.Words, 0, bytes, bytes.Length / 3, bytes.Length / 3);
+            Buffer.BlockCopy(point.Z.Words, 0, bytes, 2 * bytes.Length / 3, bytes.Length / 3);
+
+            SHA256 sha256 = SHA256.Create();
+            return sha256.ComputeHash(bytes);
+        }
+
+        /// <summary>
         /// SecretBit returns the first bit of the hash of the signature.
         /// SecretBit does not check if the signature is valid or not.
         /// </summary>
         public bool SecretBit(AltBn128G1 signature)
         {
-            byte[] bytes = new byte[signature.X.Words.Length * sizeof(ulong) * 3];
-            Buffer.BlockCopy(signature.X.Words, 0, bytes, 0, bytes.Length / 3);
-            Buffer.BlockCopy(signature.Y.Words, 0, bytes, bytes.Length / 3, bytes.Length / 3);
-            Buffer.BlockCopy(signature.Z.Words, 0, bytes, 2 * bytes.Length / 3, bytes.Length / 3);
-
-            SHA256 sha256 = SHA256.Create();
-            byte[] hash = sha256.ComputeHash(bytes);
-
-            // TODO Check if this was actually necessary, or if hash[0] is enough.
-            byte sum = 0;
-            for (int i = 0; i < hash.Length; i++)
-            {
-                sum += hash[i];
-            }
-
             // Getting most significant bit of first byte.
-            // TODO For some reason, with byte 0 always throws False. Using byte
-            // 1 shouldn't affect at all, but still check why.
-            // return (hash[0] & 0x80) == 0x80;
-            return (sum & 0x80) == 0x80;
+            return (HashG1(signature)[0] & 0x80) == 0x80;
         }
     }
 }
