@@ -82,10 +82,6 @@ namespace Aurem.Nodes
         /// </summary>
         public AltBn128G1 CombineShares(Dictionary<long, AltBn128G1> shares)
         {
-            // Dictionary<int, AltBn128G1> dshares = new();
-            // int threshold = _network.MinimumParents();
-            // for (int i = 0; i < threshold; i++)
-            //     dshares[i] = shares[i];
             return _vk.CombineShares(shares);
         }
 
