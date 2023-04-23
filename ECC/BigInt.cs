@@ -7,6 +7,35 @@ namespace Aurem.ECC
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
         public ulong[] Words;
+
+        public void Print(string msg)
+        {
+            Console.WriteLine($"{msg} {ToBigInteger(this)}");
+        }
+
+        public static BigInteger ToBigInteger(BigInt8 n)
+        {
+            BigInteger x = 0;
+            for (int i = 7; i >= 0; i--) {
+                x <<= 64;
+                x |= n.Words[i];
+                x = Ensure256bits(x);
+            }
+            return x;
+        }
+
+        // TODO Refactor this into another class.
+        public static BigInteger Ensure256bits(BigInteger n)
+        {
+            byte[] bytes = n.ToByteArray();
+            if (bytes.Length < 32)
+                return n;
+            byte[] _bytes = new byte[32];
+            for (int c = 0; c < 32; c++) {
+                _bytes[c] = bytes[c];
+            }
+            return new BigInteger(_bytes);
+        }
     }
 
     /// <summary>
@@ -75,6 +104,7 @@ namespace Aurem.ECC
             return new BigInteger(_bytes);
         }
 
+        // TODO Refactor this into another class.
         public static BigInteger ToBigInteger(BigInt n)
         {
             BigInteger x = 0;
