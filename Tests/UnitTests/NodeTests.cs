@@ -9,26 +9,46 @@ namespace Aurem.Tests
     [Collection("Tests")]
     public class NodeTests
     {
-        private int numNodes = 10;
-        private int minNodes = 7;
-        private ThresholdSignature ts;
-        private Node node;
+        private TestFixture fix = new();
 
         public NodeTests()
         {
-            ts = new(minNodes, numNodes);
-            (VerificationKey vk, List<SecretKey> sks) = ts.GenerateKeys();
-            node = new Node(0, new Network(), sks[0], vk);
+
+        }
+
+        public async Task AddUnit(Node node, byte data)
+        {
+            node.CreateUnit(new byte[1]{ data });
         }
 
         [Fact]
-        public void TestNode()
+        public async void TestNode()
         {
-            node.CreateUnit(new byte[1]{ 3 });
+            int timeoutMilliseconds = 1000;
+            Node node = fix.Nodes[0];
+            // Testing for round 0.
+            // node.CreateUnit(new byte[1]{ 3 });
+            AddUnit(node, 3);
             chDAGs.chDAG chDAG = node.GetChDAG();
             List<Unit> units = chDAG.GetRoundUnits(0);
             Assert.Single(units);
             Assert.Equal(units[0].Data, new byte[1]{ 3 });
+            // Testing for round 1.
+            // Task unitTimeout = AddUnit(node, 5);
+            Task completedTask = await Task.WhenAny(AddUnit(node, 5), Task.Delay(timeoutMilliseconds));
+            Assert.NotSame(unitTimeout, completedTask);
+
+            // node.CreateUnit(new byte[1]{ 5 });
+            // // node.CreateUnit(new byte[1]{ 5 });
+            // // node.CreateUnit(new byte[1]{ 5 });
+            // // node.CreateUnit(new byte[1]{ 5 });
+            // units = chDAG.GetRoundUnits(3);
+            // Assert.Single(units);
+            // Assert.Equal(units[0].Data, new byte[1]{ 5 });
+            // // Creating units
+            // for (int c = 0; c < fix.Nodes.Count; c++) {
+            //     fix.Nodes[c].CreateUnit(new byte[1]{ 1 });
+            // }
         }
     }
 }

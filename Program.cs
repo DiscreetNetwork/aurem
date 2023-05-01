@@ -109,7 +109,7 @@ namespace Aurem
                     threads.Add(new Thread(() => {
                         // Simulating latency.
                         if (node == nodes[0] || node == nodes[1])
-                            Thread.Sleep(random.Next(0, 10000));
+                            Thread.Sleep(random.Next(0, 1000));
                         // We don't care about what data we store for this PoC.
                         node.CreateUnit(new byte[1]{ (byte)random.Next(0, 255) });
                     }));
