@@ -112,8 +112,13 @@ namespace Aurem.chDAGs
                 return;
             }
 
+            int minParents = _network.MinimumParents();
+            while (unit.Parents == null || unit.Parents.Count < minParents) {
+                unit.Parents = GetParents();
+            }
+
             unit.Round = Round;
-            unit.Parents = GetParents();
+            // unit.Parents = GetParents();
             if (!_units.ContainsKey(Round)) {
                 _units[Round] = new List<Unit>();
             }
