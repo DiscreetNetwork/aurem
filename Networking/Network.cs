@@ -82,7 +82,7 @@ namespace Aurem.Networking
         /// using the provided value.
         /// </summary>
         public int MinimumParents(int numNodes) {
-            return (int)double.Round(numNodes - (numNodes - 1) / 3.0);
+            return (int)Math.Round(numNodes - (numNodes - 1) / 3.0);
         }
 
         /// <summary>

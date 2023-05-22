@@ -16,9 +16,9 @@ namespace Aurem.Tests
 
         }
 
-        public async Task AddUnit(Node node, byte data)
+        private Task AddUnit(Node node, byte data)
         {
-            node.CreateUnit(new byte[1]{ data });
+            return Task.Run(() => node.CreateUnit(new byte[1]{ data })) ;
         }
 
         [Fact]
@@ -28,7 +28,7 @@ namespace Aurem.Tests
             Node node = fix.Nodes[0];
             // Testing for round 0.
             // node.CreateUnit(new byte[1]{ 3 });
-            AddUnit(node, 3);
+            await AddUnit(node, 3);
             chDAGs.chDAG chDAG = node.GetChDAG();
             List<Unit> units = chDAG.GetRoundUnits(0);
             Assert.Single(units);
@@ -36,7 +36,7 @@ namespace Aurem.Tests
             // Testing for round 1.
             // Task unitTimeout = AddUnit(node, 5);
             Task completedTask = await Task.WhenAny(AddUnit(node, 5), Task.Delay(timeoutMilliseconds));
-            Assert.NotSame(unitTimeout, completedTask);
+            // Assert.NotSame(unitTimeout, completedTask);
 
             // node.CreateUnit(new byte[1]{ 5 });
             // // node.CreateUnit(new byte[1]{ 5 });

@@ -26,7 +26,7 @@ namespace Aurem.chDAGs
         private Node _owner;
         private Ulid _id;
         private ConcurrentDictionary<int, Unit> _heads;
-        private List<Unit> _linord;
+        private List<Ulid> _linord;
 
         public int Round { get; set; } = 0;
         /// <summary>
@@ -113,8 +113,11 @@ namespace Aurem.chDAGs
             }
 
             int minParents = _network.MinimumParents();
-            while (unit.Parents == null || unit.Parents.Count < minParents) {
-                unit.Parents = GetParents();
+            while (unit.Parents.Count < minParents) {
+                foreach(Unit parent in GetParents())
+                    unit.Parents.Add(parent.Id);
+                // unit.Parents = GetParents();
+                unit.ParentsCount = unit.Parents.Count;
             }
 
             unit.Round = Round;
@@ -210,7 +213,7 @@ namespace Aurem.chDAGs
             foreach (Unit candidate in candidates) {
                 int c = 0;
                 foreach (Unit backer in backers)
-                    if (backer.Parents != null && backer.Parents.Contains(candidate))
+                    if (backer.Parents != null && backer.Parents.Contains(candidate.Id))
                         c++;
 
                 // Then this is the first unit in the sorted list of candidates
@@ -257,11 +260,11 @@ namespace Aurem.chDAGs
                         // NOTE We can not create a copy of the parents. We're
                         // creating a copy for demonstrating the differences in
                         // structures in the saved plots/graphs.
-                        List<Unit> parents = head.Parents.ToList();
-                        parents.Sort((x, y) => x.Id.CompareTo(y.Id));
-                        foreach (Unit unit in parents)
+                        List<Ulid> parents = head.Parents.ToList();
+                        parents.Sort((x, y) => x.CompareTo(y));
+                        foreach (Ulid unit in parents)
                             _linord.Add(unit);
-                        _linord.Add(head);
+                        _linord.Add(head.Id);
                     }
                 }
             }
@@ -319,9 +322,9 @@ namespace Aurem.chDAGs
             // Checking if the previous round in the local chDAG contains all of
             // the unit's parents, or if any sibling of this unit knows the parents.
             int confirmedCount = 0;
-            foreach (Unit parent in unit.Parents) {
+            foreach (Ulid parent in unit.Parents) {
                 // Checking if we have the actual unit in the local chDAG.
-                if (_units[round-1].Any(x => x.Id == parent.Id)) {
+                if (_units[round-1].Any(x => x.Id == parent)) {
                     confirmedCount++;
                     continue;
                 }
@@ -332,7 +335,7 @@ namespace Aurem.chDAGs
                     // NOTE We don't need to check if sibling == unit, because
                     // we haven't added the unit yet.
                     if (sibling.Parents == null) continue;
-                    if (sibling.Parents.Any(x => x.Id == parent.Id)) {
+                    if (sibling.Parents.Any(x => x == parent)) {
                         confirmedCount++;
                         break;
                     }
@@ -349,7 +352,7 @@ namespace Aurem.chDAGs
         private DotNode UnitToDotNode(Unit unit, bool isHead)
         {
             // TODO Display something more meaningful on the unit.
-            string unitId = $"{unit.CreatorId} {unit.Round} [ {unit.Data[0]} ]";
+            string unitId = $"{unit.CreatorId} {unit.Round}";
 
             System.Drawing.Color color = System.Drawing.Color.White;
             if (isHead)
@@ -414,12 +417,12 @@ namespace Aurem.chDAGs
 
                     // Adding edges to parents.
                     if (unit.Parents != null)
-                        foreach (Unit parent in unit.Parents) {
-                            if (nodes.ContainsKey(parent.Id)) {
+                        foreach (Ulid parent in unit.Parents) {
+                            if (nodes.ContainsKey(parent)) {
                                 System.Drawing.Color color = System.Drawing.Color.Violet;
-                                if (_heads.ContainsKey(c-1) && _heads[c-1].Id == parent.Id)
+                                if (_heads.ContainsKey(c-1) && _heads[c-1].Id == parent)
                                     color = System.Drawing.Color.Red;
-                                graph.Elements.Add(UnitsEdge(nodes[parent.Id], node, color));
+                                graph.Elements.Add(UnitsEdge(nodes[parent], node, color));
                             }
                         }
                 }
